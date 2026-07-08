@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net - default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for validating document IDs
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // News Collection Rules
+    match /news/{newsId} {
+      allow read, write: if true;
+    }
+
+    // Author Accounts Rules
+    match /authors/{authorId} {
+      allow read, write: if true;
+    }
+
+    // Site Customization Rules
+    match /settings/{settingsId} {
+      allow read, write: if true;
+    }
+
+    // Polls Collection Rules
+    match /polls/{pollId} {
+      allow read, write: if true;
+    }
+
+    // Uploads Collection Rules
+    match /uploads/{uploadId} {
+      allow read, write: if true;
+    }
+
+    // User Votes Collection Rules
+    match /user_votes/{voteId} {
+      allow read, write: if true;
+    }
+
+    // Poll Comments Collection Rules
+    match /poll_comments/{commentId} {
+      allow read, write: if true;
+    }
+  }
+}

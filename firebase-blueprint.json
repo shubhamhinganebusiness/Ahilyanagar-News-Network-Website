@@ -1,0 +1,128 @@
+{
+  "entities": {
+    "News": {
+      "title": "News",
+      "description": "A news article posted to the Marathi News Portal",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the news article in Marathi" },
+        "slug": { "type": "string", "description": "SEO friendly URL slug" },
+        "category": { "type": "string", "enum": ["राष्ट्रीय", "राज्य", "शहर", "क्रीडा", "मनोरंजन", "अर्थव्यवस्था"] },
+        "description": { "type": "string", "description": "Short overview / snippet" },
+        "content": { "type": "string", "description": "Full HTML or markdown news content" },
+        "imageURL": { "type": "string", "description": "Cover image URL" },
+        "author": { "type": "string", "description": "Display name of the author" },
+        "publishDate": { "type": "string", "format": "date-time", "description": "ISO timestamp when published" },
+        "views": { "type": "integer", "description": "Number of times read" },
+        "videoURL": { "type": "string", "description": "Optional YouTube or video link" },
+        "tags": { "type": "array", "description": "Array of tags" },
+        "hidden": { "type": "boolean", "description": "True if hidden" },
+        "authorUsername": { "type": "string", "description": "The username of the author" }
+      },
+      "required": ["title", "slug", "category", "description", "content", "imageURL", "author"]
+    },
+    "AuthorAccount": {
+      "title": "AuthorAccount",
+      "description": "Author or moderator login credentials and profile mapping",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "description": "Unique login username" },
+        "password": { "type": "string", "description": "Hashed or plain password" },
+        "name": { "type": "string", "description": "Full display name" },
+        "email": { "type": "string", "description": "Email address" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "password", "name"]
+    },
+    "SiteCustomization": {
+      "title": "SiteCustomization",
+      "description": "Site-wide options, advertisements, layout, and footer settings",
+      "type": "object",
+      "properties": {
+        "channelName": { "type": "string" },
+        "channelLogoText": { "type": "string" },
+        "channelLogoAccentText": { "type": "string" },
+        "channelTagline": { "type": "string" },
+        "channelLogoUrl": { "type": "string" },
+        "footerAbout": { "type": "string" },
+        "footerAddress": { "type": "string" },
+        "footerPhone": { "type": "string" },
+        "footerEmail": { "type": "string" },
+        "footerCopyrightSub": { "type": "string" },
+        "breakingNewsText": { "type": "string" },
+        "topBarTickerText": { "type": "string" }
+      }
+    },
+    "Poll": {
+      "title": "Poll",
+      "description": "A public opinion poll or reader survey",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string", "description": "The poll question in Marathi" },
+        "options": { "type": "array", "description": "List of response options" },
+        "votes": { "type": "object", "description": "Map of option index to vote count" },
+        "active": { "type": "boolean", "description": "True if the poll is currently active for voting" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["question", "options", "votes", "active", "createdAt"]
+    },
+    "UserVote": {
+      "title": "UserVote",
+      "description": "A record of an individual logged-in user's vote in a poll",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "pollId": { "type": "string" },
+        "optionIndex": { "type": "integer" },
+        "optionText": { "type": "string" },
+        "question": { "type": "string" },
+        "votedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "email", "pollId", "optionIndex", "optionText", "question", "votedAt"]
+    },
+    "PollComment": {
+      "title": "PollComment",
+      "description": "A discussion comment attached to a specific poll",
+      "type": "object",
+      "properties": {
+        "pollId": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "commentText": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "upvotes": { "type": "integer" },
+        "upvotedUsers": { "type": "array" }
+      },
+      "required": ["pollId", "username", "name", "commentText", "createdAt", "upvotes"]
+    }
+  },
+  "firestore": {
+    "/news/{newsId}": {
+      "schema": "News",
+      "description": "Collection of Marathi news articles"
+    },
+    "/authors/{authorId}": {
+      "schema": "AuthorAccount",
+      "description": "Collection of author login accounts"
+    },
+    "/settings/site": {
+      "schema": "SiteCustomization",
+      "description": "Single document holding site customizations"
+    },
+    "/polls/{pollId}": {
+      "schema": "Poll",
+      "description": "Collection of opinion polls"
+    },
+    "/user_votes/{voteId}": {
+      "schema": "UserVote",
+      "description": "Collection of individual user poll responses"
+    },
+    "/poll_comments/{commentId}": {
+      "schema": "PollComment",
+      "description": "Collection of comments discussing polls"
+    }
+  }
+}

@@ -1,0 +1,535 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage } from './utils/safeStorage';
+import Navbar from './components/Navbar';
+import NewsGrid from './components/NewsGrid';
+import ArticleDetail from './components/ArticleDetail';
+import AdminPanel from './components/AdminPanel';
+import WeatherForecast from './components/WeatherForecast';
+import Footer from './components/Footer';
+import { News, CategoryType, SiteCustomization, AuthUser } from './types';
+import ToastContainer, { ToastMessage } from './components/Toast';
+import { AlertTriangle, Umbrella } from 'lucide-react';
+import AdBanner from './components/AdBanner';
+import LiveTvSection from './components/LiveTvSection';
+import AuthTroubleshooterModal from './components/AuthTroubleshooterModal';
+
+export default function App() {
+  const [newsList, setNewsList] = useState<News[]>([]);
+  const [currentCategory, setCategory] = useState<CategoryType>('सर्व');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [showWeatherView, setShowWeatherView] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [showAuthTroubleshooter, setShowAuthTroubleshooter] = useState(false);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+
+  // Load auth state from session storage on mount
+  useEffect(() => {
+    try {
+      const isLogged = sessionStorage.getItem('mp_user_logged') === 'true';
+      const role = sessionStorage.getItem('mp_user_role') as 'superadmin' | 'author' | 'reader' | null;
+      const name = sessionStorage.getItem('mp_user_name') || '';
+      const username = sessionStorage.getItem('mp_user_username') || '';
+      const email = sessionStorage.getItem('mp_user_email') || '';
+      const token = sessionStorage.getItem('mp_auth_token') || '';
+      const photoUrl = sessionStorage.getItem('mp_user_photo') || '';
+      const gToken = sessionStorage.getItem('mp_google_access_token');
+
+      if (gToken) {
+        setGoogleAccessToken(gToken);
+      }
+
+      if (isLogged && role && token) {
+        setAuthUser({
+          role,
+          username,
+          name,
+          email,
+          token,
+          photoUrl
+        });
+      }
+    } catch (e) {
+      console.error('Error reading auth state from sessionStorage:', e);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    setGoogleAccessToken(null);
+    sessionStorage.removeItem('mp_user_logged');
+    sessionStorage.removeItem('mp_admin_logged'); // legacy admin toggle support
+    sessionStorage.removeItem('mp_user_role');
+    sessionStorage.removeItem('mp_user_name');
+    sessionStorage.removeItem('mp_user_username');
+    sessionStorage.removeItem('mp_user_email');
+    sessionStorage.removeItem('mp_user_photo');
+    sessionStorage.removeItem('mp_auth_token');
+    sessionStorage.removeItem('mp_google_access_token');
+    
+    if (isAdminMode) {
+      setIsAdminMode(false);
+      window.history.pushState(null, '', '/');
+    }
+    addToast('यशस्वीरित्या लॉगआउट झाले.', 'info');
+  };
+
+  const handleFirebaseGoogleLogin = async () => {
+    try {
+      addToast('गूगल लॉगिन सुरू होत आहे...', 'info');
+      // 1. Fetch Firebase Public Configuration from the server
+      const configRes = await fetch('/api/auth/firebase-config');
+      if (!configRes.ok) {
+        throw new Error('सर्व्हरवरून Firebase कॉन्फिगरेशन मिळवण्यात अपयश आले.');
+      }
+      const firebaseConfig = await configRes.json();
+
+      // 2. Initialize Firebase App
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const auth = getAuth(app);
+      
+      // 3. Trigger Google Sign-In popup via Firebase Auth
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      // Add Google Drive scopes
+      provider.addScope('https://www.googleapis.com/auth/drive');
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+
+      const userCredential = await signInWithPopup(auth, provider);
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Cache Google Access Token in memory and sessionStorage
+      const credential = GoogleAuthProvider.credentialFromResult(userCredential);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        sessionStorage.setItem('mp_google_access_token', credential.accessToken);
+      }
+
+      // 4. Send the ID token to our secure backend verify endpoint
+      const loginRes = await fetch('/api/auth/firebase-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ idToken })
+      });
+
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        throw new Error(loginData.error || 'Firebase लॉगिन पडताळणी अयशस्वी झाली.');
+      }
+
+      const loggedUser: AuthUser = {
+        role: loginData.role,
+        username: loginData.username,
+        name: loginData.name,
+        email: loginData.email,
+        token: loginData.token,
+        photoUrl: loginData.photoUrl || ''
+      };
+
+      setAuthUser(loggedUser);
+      sessionStorage.setItem('mp_user_logged', 'true');
+      sessionStorage.setItem('mp_user_role', loggedUser.role);
+      sessionStorage.setItem('mp_user_name', loggedUser.name);
+      sessionStorage.setItem('mp_user_username', loggedUser.username);
+      sessionStorage.setItem('mp_user_email', loggedUser.email);
+      sessionStorage.setItem('mp_user_photo', loggedUser.photoUrl || '');
+      sessionStorage.setItem('mp_auth_token', loggedUser.token);
+    } catch (err: any) {
+      console.error('Firebase Auth error:', err);
+      let MarathiErrMsg = err.message || 'गूगल लॉगिन करताना त्रुटी आली.';
+      if (err.code === 'auth/popup-closed-by-user') {
+        MarathiErrMsg = 'लॉगिन पॉपअप विंडो बंद झाली किंवा ब्लॉक केली गेली आहे. कृपया पुन्हा प्रयत्न करा.';
+      }
+      addToast(MarathiErrMsg, 'error');
+    }
+  };
+
+  // Local-first site initialization to prevent Cloud Run ephemeral updates loss
+  const getInitialSettings = (): SiteCustomization => {
+    const defaultVals: SiteCustomization = {
+      channelName: 'अहिल्यानगर न्यूज नेटवर्क',
+      channelLogoText: 'माझा',
+      channelLogoAccentText: 'अहिल्यानगर न्यूज नेटवर्क',
+      channelTagline: 'माझा महाराष्ट्र, माझे पत्र',
+      channelLogoUrl: '',
+      footerAbout: 'अहिल्यानगर न्यूज नेटवर्क हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.',
+      footerAddress: 'अहिल्यानगर न्यूज नेटवर्क, महाराष्ट्र, भारत.',
+      footerPhone: '+९१ ९४२३२३४१९३',
+      footerEmail: 'editor@ahilyanagarnewsnetwork.in',
+      footerCopyrightSub: 'महाराष्ट्राचे हक्ताचे व्यासपीठ',
+      breakingNewsText: 'महायुती आणि महाविकास आघाडीमध्ये जागावाटपाचा तिढा सुटला; दोन्ही बाजूंकडून उमेदवारांची घोषणा | मुंबई-पुणे एक्सप्रेसवेवर भीषण अपघात, वाहतूक कोंडी | सोन्याच्या दरात घसरण, गुढीपाडव्याच्या पार्श्वभूमीवर ग्राहकांना दिलासा | आयपीएल २०२६: मुंबई इंडियन्सचा शानदार विजय, गुणतालिकेत वरचे स्थान मिळवले',
+      topBarTickerText: 'अहिल्यानगर न्यूज नेटवर्क वर ताज्या घडामोडी आणि अचूक बातम्यांचे थेट प्रसार पाहा.',
+      adBannerEnabled: true,
+      adBannerImageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+      adBannerText: 'विशेष जाहिरात ऑफर: आमच्यासोबत जाहिरात करून तुमचा व्यवसाय लाखोंपर्यंत पोहोचवा! संपर्क: +९१ ९४२३२३४१९३',
+      adBannerLink: '#',
+      adBannerBgColor: '#e11d48',
+      liveTvUrl: 'https://www.youtube.com/watch?v=yW6I1y8Jt4w',
+      detailAd1Enabled: true,
+      detailAd1ImageUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80',
+      detailAd1Link: '#',
+      detailAd2Enabled: true,
+      detailAd2ImageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+      detailAd2Link: '#',
+      detailAd3Enabled: true,
+      detailAd3ImageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+      detailAd3Link: '#',
+      detailAd4Enabled: true,
+      detailAd4ImageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80',
+      detailAd4Link: '#',
+      brandAdsEnabled: true,
+      brandAdsSlides: [
+        {
+          id: 'slide-1',
+          imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+          linkUrl: '#',
+          title: 'आमच्या न्यूज पोर्टलवर जाहिरात प्रसिद्ध करा व कोट्यवधी वाचकांपर्यंत पोहोचा!'
+        },
+        {
+          id: 'slide-2',
+          imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+          linkUrl: '#',
+          title: 'विशेष औद्योगिक जाहिरात: उद्योजक आणि व्यावसायिकांसाठी उत्तम माध्यम'
+        }
+      ],
+      brandAdsTitle: 'विशेष जाहिरात दालन',
+      brandAdsSubtitle: 'आमच्या न्यूज पोर्टलवर आपल्या व्यवसायाची जाहिरात करा',
+      brandAdsInterval: 5,
+    };
+
+    try {
+      const stored = localStorage.getItem('majhapatra_siteCustomization');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...defaultVals, ...parsed };
+      }
+    } catch (e) {
+      console.error('Error recovering local customization settings:', e);
+    }
+    return defaultVals;
+  };
+  const [siteSettings, setSiteSettings] = useState<SiteCustomization>(getInitialSettings);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now().toString() + Math.random().toString();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Function to load/refresh news list from real Express API
+  const fetchNews = () => {
+    setIsLoading(true);
+    let url = '/api/news';
+    
+    // Build parameters if they fit backend endpoints
+    const params = new URLSearchParams();
+    if (currentCategory !== 'सर्व') {
+      params.append('category', currentCategory);
+    }
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
+    }
+    if (isAdminMode) {
+      params.append('includeHidden', 'true');
+    }
+    
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+
+    const headers: Record<string, string> = {};
+    if (isAdminMode) {
+      headers['Authorization'] = sessionStorage.getItem('mp_auth_token') || 'Basic YWRtaW46bWFyYXRoaUAxMjM=';
+    }
+
+    fetch(url, { headers })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('बातम्या लोड करण्यात अडचण आली.');
+        }
+        return res.json();
+      })
+      .then((data: News[]) => {
+        setNewsList(data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setIsLoading(false);
+        addToast('सर्व्हरकडून बातम्या मिळवण्यात अयशस्वी. कृपया नेटवर्क तपासा.', 'error');
+      });
+  };
+
+  // Trigger load on category, search, admin mode or initial load
+  useEffect(() => {
+    fetchNews();
+  }, [currentCategory, searchQuery, isAdminMode]);
+
+  // Fetch Site Customization settings on mount with localStorage caching
+  const fetchSettings = () => {
+    fetch('/api/settings')
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        if (data && data.channelName) {
+          setSiteSettings((prev) => {
+            const merged = { ...prev, ...data };
+            try {
+              localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
+            } catch (e) {
+              console.error(e);
+            }
+            return merged;
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch site settings:', err);
+      });
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  // Check URL parameters on mount to support redirect routing from Express
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = params.get('page');
+    const articleParam = params.get('article');
+
+    if (pageParam === 'admin') {
+      setIsAdminMode(true);
+      setSelectedArticleId(null);
+      setShowWeatherView(false);
+    } else if (pageParam === 'weather') {
+      setShowWeatherView(true);
+      setIsAdminMode(false);
+      setSelectedArticleId(null);
+    } else if (articleParam) {
+      setSelectedArticleId(articleParam);
+      setIsAdminMode(false);
+      setShowWeatherView(false);
+    }
+  }, []);
+
+  const handleSelectArticle = (id: string) => {
+    setSelectedArticleId(id);
+    setIsAdminMode(false);
+    setShowWeatherView(false);
+    // Push simple state changes into history in-case user uses browser back button
+    window.history.pushState(null, '', `/?article=${id}`);
+    
+    // Smooth scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToHome = () => {
+    setSelectedArticleId(null);
+    setIsAdminMode(false);
+    setShowWeatherView(false);
+    window.history.pushState(null, '', '/');
+    fetchNews();
+  };
+
+  const handleNavigateToAdmin = () => {
+    setIsAdminMode(true);
+    setSelectedArticleId(null);
+    setShowWeatherView(false);
+    window.history.pushState(null, '', '/?page=admin');
+  };
+
+  const handleToggleWeather = (show: boolean) => {
+    setShowWeatherView(show);
+    setIsAdminMode(false);
+    setSelectedArticleId(null);
+    if (show) {
+      window.history.pushState(null, '', '/?page=weather');
+    } else {
+      window.history.pushState(null, '', '/');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Listen to browser popstate to make browser back button work!
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const pageParam = params.get('page');
+      const articleParam = params.get('article');
+
+      if (pageParam === 'admin') {
+        setIsAdminMode(true);
+        setSelectedArticleId(null);
+        setShowWeatherView(false);
+      } else if (pageParam === 'weather') {
+        setShowWeatherView(true);
+        setIsAdminMode(false);
+        setSelectedArticleId(null);
+      } else if (articleParam) {
+        setSelectedArticleId(articleParam);
+        setIsAdminMode(false);
+        setShowWeatherView(false);
+      } else {
+        setSelectedArticleId(null);
+        setIsAdminMode(false);
+        setShowWeatherView(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans">
+      <div>
+        {/* Navbar */}
+        <Navbar
+          currentCategory={currentCategory}
+          setCategory={(cat) => {
+            setCategory(cat);
+            setShowWeatherView(false);
+          }}
+          searchQuery={searchQuery}
+          setSearchQuery={(q) => {
+            setSearchQuery(q);
+            if (q) setShowWeatherView(false);
+          }}
+          onNavigateToAdmin={handleNavigateToAdmin}
+          onNavigateToHome={handleBackToHome}
+          isAdminMode={isAdminMode}
+          siteSettings={siteSettings}
+          showWeatherView={showWeatherView}
+          onToggleWeather={handleToggleWeather}
+          authUser={authUser}
+          onGoogleLogin={handleFirebaseGoogleLogin}
+          onLogout={handleLogout}
+          onOpenTroubleshooter={() => setShowAuthTroubleshooter(true)}
+          addToast={addToast}
+        />
+
+        {/* Breaking News Ticker */}
+        {(localStorage.getItem('majhapatra_breakingNewsText') || siteSettings.breakingNewsText) && (
+          <div className="bg-rose-600 border-y border-rose-700/30 text-white flex items-center h-11 overflow-hidden select-none shadow-xs font-sans">
+            <div className="bg-rose-700 text-white text-xs font-extrabold px-4 py-3 shrink-0 flex items-center space-x-2.5 uppercase tracking-wider relative z-10 shadow-md">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400"></span>
+              </span>
+              <span>ब्रेकिंग न्यूज</span>
+            </div>
+            <div className="relative flex-1 overflow-hidden flex items-center h-full">
+              <div className="animate-marquee whitespace-nowrap flex items-center gap-16 text-sm font-medium tracking-wide">
+                <span>{localStorage.getItem('majhapatra_breakingNewsText') || siteSettings.breakingNewsText}</span>
+                <span className="text-yellow-300 font-bold">★</span>
+                <span>{localStorage.getItem('majhapatra_breakingNewsText') || siteSettings.breakingNewsText}</span>
+                <span className="text-yellow-300 font-bold">★</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Pages Area */}
+        <main className="animate-fade-in">
+          {isAdminMode ? (
+            <AdminPanel
+              onBackToHome={handleBackToHome}
+              newsList={newsList}
+              refreshNews={fetchNews}
+              addToast={addToast}
+              siteSettings={siteSettings}
+              onSaveSettings={fetchSettings}
+              googleAccessToken={googleAccessToken}
+              onGoogleLogin={handleFirebaseGoogleLogin}
+            />
+          ) : showWeatherView ? (
+            <WeatherForecast />
+          ) : selectedArticleId ? (
+            <ArticleDetail
+              articleId={selectedArticleId}
+              onBack={handleBackToHome}
+              onSelectArticle={handleSelectArticle}
+              addToast={addToast}
+              channelName={siteSettings.channelName}
+              siteSettings={siteSettings}
+              authUser={authUser}
+            />
+          ) : (
+            <>
+              {/* Ad Banner customizable via admin */}
+              <AdBanner settings={siteSettings} />
+
+              {isLoading && newsList.length === 0 ? (
+                <div className="max-w-7xl mx-auto px-4 py-20 text-center flex flex-col items-center justify-center">
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute animate-ping h-12 w-12 rounded-full bg-blue-300 opacity-20"></div>
+                    <div className="animate-spin bg-blue-50 p-4 rounded-full border border-blue-100 shadow-xs flex items-center justify-center">
+                      <Umbrella className="h-8 w-8 text-blue-600 shrink-0" />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse font-sans tracking-wide">
+                    बातम्या लोड होत आहेत... रिमझिम पावसाळी वातावरण ⛈️
+                  </p>
+                </div>
+              ) : (
+                <NewsGrid
+                  newsList={newsList}
+                  currentCategory={currentCategory}
+                  searchQuery={searchQuery}
+                  onSelectArticle={handleSelectArticle}
+                  setCategory={setCategory}
+                  setSearchQuery={setSearchQuery}
+                  siteSettings={siteSettings}
+                  onToggleWeather={handleToggleWeather}
+                  authUser={authUser}
+                  addToast={addToast}
+                />
+              )}
+            </>
+          )}
+        </main>
+      </div>
+
+      {/* Footer */}
+      <Footer siteSettings={siteSettings} addToast={addToast} />
+
+      {/* Global Toast Notifications */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* Auth Troubleshooter Modal for Fallback Login / Popup issues */}
+      <AuthTroubleshooterModal
+        isOpen={showAuthTroubleshooter}
+        onClose={() => setShowAuthTroubleshooter(false)}
+        onSuccess={(user) => {
+          setAuthUser(user);
+          // Auto route to admin panel if user is admin/author and they logged in from a restricted action
+          if (user.role === 'superadmin' || user.role === 'author') {
+            setIsAdminMode(true);
+            window.scrollTo(0, 0);
+          }
+        }}
+        addToast={addToast}
+      />
+    </div>
+  );
+}

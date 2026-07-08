@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-remixmajhapatram-10800a2e-76da-48a8-a47b-ea2ac2b8b2bb",
+      "rules": "firestore.rules"
+    }
+  ]
+}
