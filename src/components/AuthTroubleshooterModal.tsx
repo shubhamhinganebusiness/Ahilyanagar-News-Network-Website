@@ -44,7 +44,17 @@ export default function AuthTroubleshooterModal({
         })
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.includes('<html')) {
+          throw new Error('तांत्रिक अडचण: सर्व्हरकडून अयोग्य प्रतिसाद मिळाला (HTML ऐवजी JSON हवा होता). कृपया खात्री करा की तुमची होस्टिंग योग्यरित्या कॉन्फिगर केली आहे आणि बॅकएंड Node.js/Express सर्व्हर सक्रिय आहे. (Unexpected HTML response from /api/auth/login. This usually means your static hosting is misconfigured and routing API requests to index.html instead of the running backend server).');
+        }
+        throw new Error('सर्व्हरकडून चुकीचा प्रतिसाद मिळाला (Invalid JSON response from /api/auth/login).');
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'युझरनेम किंवा पासवर्ड चुकीचा आहे.');
       }
@@ -96,7 +106,17 @@ export default function AuthTroubleshooterModal({
         body: JSON.stringify({ username: u, password: p })
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.includes('<html')) {
+          throw new Error('तांत्रिक अडचण: सर्व्हरकडून अयोग्य प्रतिसाद मिळाला (HTML ऐवजी JSON हवा होता). कृपया खात्री करा की तुमची होस्टिंग योग्यरित्या कॉन्फिगर केली आहे आणि बॅकएंड Node.js/Express सर्व्हर सक्रिय आहे. (Unexpected HTML response from /api/auth/login. This usually means your static hosting is misconfigured and routing API requests to index.html instead of the running backend server).');
+        }
+        throw new Error('सर्व्हरकडून चुकीचा प्रतिसाद मिळाला (Invalid JSON response from /api/auth/login).');
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'लॉगिन अयशस्वी.');
       }

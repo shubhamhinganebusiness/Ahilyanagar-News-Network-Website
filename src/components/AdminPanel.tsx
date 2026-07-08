@@ -13,6 +13,7 @@ import AuthorLoginsPanel from './AuthorLoginsPanel';
 import D3Analytics from './D3Analytics';
 import GoogleDrivePanel from './GoogleDrivePanel';
 import PollsPanel from './PollsPanel';
+import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 interface AdminPanelProps {
   onBackToHome: () => void;
@@ -790,9 +791,25 @@ export default function AdminPanel({
         let uploadedUrl = '';
         if (targetField === 'slide') {
           try {
-            const configRes = await fetch('/api/auth/firebase-config');
-            if (!configRes.ok) throw new Error('Could not fetch Firebase configuration.');
-            const firebaseConfig = await configRes.json();
+            let firebaseConfig: any;
+            try {
+              const configRes = await fetch('/api/auth/firebase-config');
+              const configText = await configRes.text();
+              if (configRes.ok) {
+                try {
+                  firebaseConfig = JSON.parse(configText);
+                } catch (e) {
+                  firebaseConfig = firebaseAppletConfig;
+                }
+              } else {
+                firebaseConfig = firebaseAppletConfig;
+              }
+            } catch (err) {
+              firebaseConfig = firebaseAppletConfig;
+            }
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+              throw new Error('Could not retrieve Firebase configuration.');
+            }
             const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
             const storage = getStorage(app);
             const storageRef = ref(storage, `brand-ads/${Date.now()}-${file.name}`);
@@ -1078,13 +1095,29 @@ export default function AdminPanel({
       setLoginError('');
       setIsSubmitting(true);
       
-      // 1. Fetch Firebase Public Configuration from the server
-      const configRes = await fetch('/api/auth/firebase-config');
-      if (!configRes.ok) {
-        const errData = await configRes.json();
-        throw new Error(errData.error || 'सर्व्हरवरून Firebase कॉन्फिगरेशन मिळवण्यात अपयश आले.');
+      let firebaseConfig: any;
+      try {
+        const configRes = await fetch('/api/auth/firebase-config');
+        const configText = await configRes.text();
+        if (configRes.ok) {
+          try {
+            firebaseConfig = JSON.parse(configText);
+          } catch (e) {
+            console.warn('Could not parse server Firebase configuration, using bundled fallback:', e);
+            firebaseConfig = firebaseAppletConfig;
+          }
+        } else {
+          console.warn('Server Firebase configuration endpoint returned non-OK status, using bundled fallback');
+          firebaseConfig = firebaseAppletConfig;
+        }
+      } catch (networkErr) {
+        console.warn('Network error while fetching Firebase configuration, using bundled fallback:', networkErr);
+        firebaseConfig = firebaseAppletConfig;
       }
-      const firebaseConfig = await configRes.json();
+
+      if (!firebaseConfig || !firebaseConfig.apiKey) {
+        throw new Error('सर्व्हरवरून Firebase कॉन्फिगरेशन मिळवण्यात अपयश आले आणि पर्यायी फाइल देखील अपूर्ण आहे.');
+      }
 
       // 2. Initialize Firebase App
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -1108,7 +1141,17 @@ export default function AdminPanel({
         body: JSON.stringify({ idToken })
       });
 
-      const loginData = await loginRes.json();
+      const loginText = await loginRes.text();
+      let loginData: any;
+      try {
+        loginData = JSON.parse(loginText);
+      } catch (parseErr) {
+        if (loginText.trim().startsWith('<!DOCTYPE') || loginText.includes('<html')) {
+          throw new Error('तांत्रिक अडचण: सर्व्हरकडून अयोग्य प्रतिसाद मिळाला (HTML ऐवजी JSON हवा होता). कृपया खात्री करा की तुमची होस्टिंग योग्यरित्या कॉन्फिगर केली आहे आणि बॅकएंड Node.js/Express सर्व्हर सक्रिय आहे. (Unexpected HTML response from /api/auth/firebase-login. This usually means your static hosting is misconfigured and routing API requests to index.html instead of the running backend server).');
+        }
+        throw new Error('सर्व्हरकडून चुकीचा प्रतिसाद मिळाला (Invalid JSON response from /api/auth/firebase-login).');
+      }
+
       if (!loginRes.ok) {
         throw new Error(loginData.error || 'Firebase लॉगिन पडताळणी अयशस्वी झाली.');
       }
@@ -1167,7 +1210,18 @@ export default function AdminPanel({
         },
         body: JSON.stringify({ username: username.trim(), password })
       });
-      const data = await res.json();
+      
+      const responseText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.includes('<html')) {
+          throw new Error('तांत्रिक अडचण: सर्व्हरकडून अयोग्य प्रतिसाद मिळाला (HTML ऐवजी JSON हवा होता). कृपया खात्री करा की तुमची होस्टिंग योग्यरित्या कॉन्फिगर केली आहे आणि बॅकएंड Node.js/Express सर्व्हर सक्रिय आहे. (Unexpected HTML response from /api/auth/login. This usually means your static hosting is misconfigured and routing API requests to index.html instead of the running backend server).');
+        }
+        throw new Error('सर्व्हरकडून चुकीचा प्रतिसाद मिळाला (Invalid JSON response).');
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'युझरनेम किंवा पासवर्ड चुकीचा आहे.');
       }

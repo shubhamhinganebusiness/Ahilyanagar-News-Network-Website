@@ -14,6 +14,7 @@ import { AlertTriangle, Umbrella } from 'lucide-react';
 import AdBanner from './components/AdBanner';
 import LiveTvSection from './components/LiveTvSection';
 import AuthTroubleshooterModal from './components/AuthTroubleshooterModal';
+import firebaseAppletConfig from '../firebase-applet-config.json';
 
 export default function App() {
   const [newsList, setNewsList] = useState<News[]>([]);
@@ -82,12 +83,30 @@ export default function App() {
   const handleFirebaseGoogleLogin = async () => {
     try {
       addToast('गूगल लॉगिन सुरू होत आहे...', 'info');
-      // 1. Fetch Firebase Public Configuration from the server
-      const configRes = await fetch('/api/auth/firebase-config');
-      if (!configRes.ok) {
-        throw new Error('सर्व्हरवरून Firebase कॉन्फिगरेशन मिळवण्यात अपयश आले.');
+      
+      let firebaseConfig: any;
+      try {
+        const configRes = await fetch('/api/auth/firebase-config');
+        const configText = await configRes.text();
+        if (configRes.ok) {
+          try {
+            firebaseConfig = JSON.parse(configText);
+          } catch (e) {
+            console.warn('Could not parse server Firebase configuration, using bundled fallback:', e);
+            firebaseConfig = firebaseAppletConfig;
+          }
+        } else {
+          console.warn('Server Firebase configuration endpoint returned non-OK status, using bundled fallback');
+          firebaseConfig = firebaseAppletConfig;
+        }
+      } catch (networkErr) {
+        console.warn('Network error while fetching Firebase configuration, using bundled fallback:', networkErr);
+        firebaseConfig = firebaseAppletConfig;
       }
-      const firebaseConfig = await configRes.json();
+
+      if (!firebaseConfig || !firebaseConfig.apiKey) {
+        throw new Error('सर्व्हरवरून Firebase कॉन्फिगरेशन मिळवण्यात अपयश आले आणि पर्यायी फाइल देखील अपूर्ण आहे.');
+      }
 
       // 2. Initialize Firebase App
       const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -122,7 +141,17 @@ export default function App() {
         body: JSON.stringify({ idToken })
       });
 
-      const loginData = await loginRes.json();
+      const loginText = await loginRes.text();
+      let loginData: any;
+      try {
+        loginData = JSON.parse(loginText);
+      } catch (parseErr) {
+        if (loginText.trim().startsWith('<!DOCTYPE') || loginText.includes('<html')) {
+          throw new Error('तांत्रिक अडचण: सर्व्हरकडून अयोग्य प्रतिसाद मिळाला (HTML ऐवजी JSON हवा होता). कृपया खात्री करा की तुमची होस्टिंग योग्यरित्या कॉन्फिगर केली आहे आणि बॅकएंड Node.js/Express सर्व्हर सक्रिय आहे. (Unexpected HTML response from /api/auth/firebase-login. This usually means your static hosting is misconfigured and routing API requests to index.html instead of the running backend server).');
+        }
+        throw new Error('सर्व्हरकडून चुकीचा प्रतिसाद मिळाला (Invalid JSON response from /api/auth/firebase-login).');
+      }
+
       if (!loginRes.ok) {
         throw new Error(loginData.error || 'Firebase लॉगिन पडताळणी अयशस्वी झाली.');
       }
