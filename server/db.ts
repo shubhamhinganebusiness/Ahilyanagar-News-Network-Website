@@ -685,25 +685,38 @@ export class PortalDatabase {
   }
 
   async getSettings(): Promise<SiteCustomization> {
+    const local = this.getLocalSettings();
     if (this.useFallback) {
-      return this.getLocalSettings();
+      return local;
     }
 
     try {
       const docRef = doc(this.firestore, 'settings', 'site');
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return { ...defaultSettings, ...docSnap.data() };
+        const firestoreData = docSnap.data();
+        const merged = { ...defaultSettings, ...firestoreData, ...local };
+        
+        // Sync local-first changes (like uploaded logo URL) back to Firestore if they differ
+        const isDifferent = JSON.stringify(firestoreData) !== JSON.stringify(merged);
+        if (isDifferent) {
+          console.log('Syncing local-first settings to Firestore...');
+          await setDoc(docRef, merged);
+        }
+        
+        // Save merged to local file cache
+        this.saveLocalSettings(merged);
+        return merged;
       } else {
-        await setDoc(docRef, defaultSettings);
-        return defaultSettings;
+        await setDoc(docRef, local);
+        return local;
       }
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {
         return this.getSettings();
       }
       handleFirestoreError(err, OperationType.GET, 'settings/site');
-      return defaultSettings;
+      return local;
     }
   }
 
@@ -721,6 +734,9 @@ export class PortalDatabase {
       const current = docSnap.exists() ? docSnap.data()! : await this.getSettings();
       const updated = { ...current, ...data };
       await setDoc(docRef, updated);
+      
+      // Always keep local file completely in sync
+      this.saveLocalSettings(updated as SiteCustomization);
       return updated as SiteCustomization;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {

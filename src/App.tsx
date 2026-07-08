@@ -321,7 +321,7 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        if (data && data.channelName) {
+        if (data && typeof data === 'object') {
           setSiteSettings((prev) => {
             const merged = { ...prev, ...data };
             try {
