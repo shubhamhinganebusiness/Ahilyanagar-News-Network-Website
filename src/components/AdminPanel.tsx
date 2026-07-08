@@ -13,7 +13,7 @@ import AuthorLoginsPanel from './AuthorLoginsPanel';
 import D3Analytics from './D3Analytics';
 import GoogleDrivePanel from './GoogleDrivePanel';
 import PollsPanel from './PollsPanel';
-import firebaseAppletConfig from '../../firebase-applet-config.json';
+import { firebaseAppletConfig } from '../firebase-config-fallback';
 
 interface AdminPanelProps {
   onBackToHome: () => void;

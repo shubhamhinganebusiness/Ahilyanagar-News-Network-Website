@@ -14,7 +14,7 @@ import { AlertTriangle, Umbrella } from 'lucide-react';
 import AdBanner from './components/AdBanner';
 import LiveTvSection from './components/LiveTvSection';
 import AuthTroubleshooterModal from './components/AuthTroubleshooterModal';
-import firebaseAppletConfig from '../firebase-applet-config.json';
+import { firebaseAppletConfig } from './firebase-config-fallback';
 
 export default function App() {
   const [newsList, setNewsList] = useState<News[]>([]);

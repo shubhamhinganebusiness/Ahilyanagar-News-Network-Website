@@ -1,0 +1,11 @@
+export const firebaseAppletConfig = {
+  "projectId": "gen-lang-client-0237037046",
+  "appId": "1:1048690632738:web:61965414bcdeb5cb04c27b",
+  "apiKey": "AIzaSyCYLx7EMq1usfcBBQWP9gC8CvONHQEXa7Q",
+  "authDomain": "gen-lang-client-0237037046.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-remixremixmajhap-e87cdb36-28bc-4662-b9cc-e404deca17c2",
+  "storageBucket": "gen-lang-client-0237037046.firebasestorage.app",
+  "messagingSenderId": "1048690632738",
+  "measurementId": "",
+  "oAuthClientId": "1048690632738-5mpjv14t8bhc8cohb31in5ib417nropi.apps.googleusercontent.com"
+};
