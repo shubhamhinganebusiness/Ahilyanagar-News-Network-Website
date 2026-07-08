@@ -67,7 +67,7 @@ export default function GoogleDrivePanel({
   const [backupFolder, setBackupFolder] = useState<{ id: string; name: string } | null>(() => {
     const id = localStorage.getItem('mp_backup_folder_id');
     const name = localStorage.getItem('mp_backup_folder_name');
-    if (name === 'Ahilyanagar News network' && id) {
+    if (name === 'Ahilyanagar News Network' && id) {
       return { id, name };
     }
     localStorage.removeItem('mp_backup_folder_id');
@@ -288,7 +288,7 @@ export default function GoogleDrivePanel({
       // 2. Identify the backup folder ID
       let folderId = folderIdToUse || backupFolder?.id;
       if (!folderId) {
-        const folderName = 'Ahilyanagar News network';
+        const folderName = 'Ahilyanagar News Network';
         const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
           `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
         )}&fields=files(id,name)`;
@@ -351,7 +351,7 @@ export default function GoogleDrivePanel({
 
     try {
       let folderId = backupFolder?.id;
-      const folderName = backupFolder?.name || 'Ahilyanagar News network';
+      const folderName = backupFolder?.name || 'Ahilyanagar News Network';
 
       setBackupProgress(15);
       setBackupStatus('गुगल ड्राइव्ह फोल्डर तपासत आहे...');
@@ -703,10 +703,10 @@ export default function GoogleDrivePanel({
     if (!googleAccessToken) return;
     
     try {
-      const folderName = 'Ahilyanagar News network';
+      const folderName = 'Ahilyanagar News Network';
       let folderId = localStorage.getItem('mp_backup_folder_id') || '';
       
-      // 1. Search for the folder 'Ahilyanagar News network' if not cached
+      // 1. Search for the folder 'Ahilyanagar News Network' if not cached
       if (!folderId) {
         const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
           `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
@@ -845,7 +845,7 @@ export default function GoogleDrivePanel({
 
       // Update timestamp
       localStorage.setItem('mp_last_auto_backup_time', Date.now().toString());
-      addToast(`'Ahilyanagar News network' फोल्डरमध्ये सर्व साइट डेटा स्वयंचलितपणे बॅकअप केला गेला आहे!`, 'success');
+      addToast(`'Ahilyanagar News Network' फोल्डरमध्ये सर्व साइट डेटा स्वयंचलितपणे बॅकअप केला गेला आहे!`, 'success');
       fetchFolderFilesAndQuota(folderId);
 
     } catch (err) {
@@ -1146,6 +1146,27 @@ export default function GoogleDrivePanel({
               <span className="gsi-material-button-contents font-sans font-bold">Sign in with Google</span>
             </div>
           </button>
+
+          {/* OAuth Unverified App Bypass Guidance Box */}
+          <div className="mt-6 p-4 bg-amber-50/50 border border-amber-200/60 rounded-2xl text-left max-w-md mx-auto space-y-3">
+            <h4 className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>'Google hasn't verified this app' एरर येत असल्यास उपाय:</span>
+            </h4>
+            <div className="text-[11px] text-amber-800 leading-relaxed space-y-2">
+              <p>
+                ही एक सामान्य सुरक्षितता चेतावणी आहे कारण हा ॲप विकास टप्प्यात (Development phase) आहे. लॉगिन करताना ही चेतावणी आल्यास खालील सोप्या पायऱ्या वापरा:
+              </p>
+              <ol className="list-decimal pl-4.5 space-y-1 font-semibold text-amber-900">
+                <li>गुगलच्या सुरक्षा स्क्रीनवर डावीकडे खाली असलेल्या <strong>'Advanced' (प्रगत)</strong> लिंकवर क्लिक करा.</li>
+                <li>त्यानंतर खाली दिसणाऱ्या <strong>'Go to [App Name] (unsafe)'</strong> या लिंकवर क्लिक करून पुढे जा.</li>
+                <li>ॲपला आवश्यक त्या परवानग्या देऊन परवानगी मंजूर करा.</li>
+              </ol>
+              <div className="border-t border-amber-200/50 pt-2 text-[10px] text-slate-500">
+                <span className="font-bold">विकासकांसाठी टीप:</span> या एररला पूर्णपणे काढण्यासाठी, आपल्या Google Cloud Console मधील <strong>OAuth consent screen</strong> वर जाऊन <strong>Test users</strong> विभागात वापरकर्त्याचा ईमेल (<code className="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-mono">shubhamhinganebusiness@gmail.com</code>) जोडा.
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1384,7 +1405,7 @@ export default function GoogleDrivePanel({
                                   color: '#cbd5e1' // slate-300
                                 },
                                 {
-                                  name: 'Ahilyanagar News network (Backup Size)',
+                                  name: 'Ahilyanagar News Network (Backup Size)',
                                   value: quota.backupFolderSize,
                                   color: '#e11d48' // rose-600
                                 },
@@ -1471,7 +1492,7 @@ export default function GoogleDrivePanel({
                       <div className="min-w-0 text-left">
                         <span className="text-[10px] text-rose-500 block uppercase font-bold">गुगल ड्राईव्ह मार्ग</span>
                         <span className="truncate block font-black text-slate-800">
-                          {backupFolder ? backupFolder.name : 'Ahilyanagar News network (Default Folder)'}
+                          {backupFolder ? backupFolder.name : 'Ahilyanagar News Network (Default Folder)'}
                         </span>
                       </div>
                     </div>

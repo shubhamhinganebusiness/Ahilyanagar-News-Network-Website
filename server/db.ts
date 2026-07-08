@@ -257,15 +257,12 @@ export class PortalDatabase {
   private useFallback = false;
 
   private checkIfFallbackNeeded(err: any): boolean {
-    const errMsg = String(err.message || err);
-    if (errMsg.includes('PERMISSION_DENIED') || errMsg.includes('Missing or insufficient permissions') || errMsg.includes('not found') || errMsg.includes('NOT_FOUND') || !this.firestore) {
-      if (!this.useFallback) {
-        console.warn('Firestore connectivity or permission issue detected. Enabling seamless local file fallback.');
-        this.useFallback = true;
-      }
-      return true;
+    const errMsg = String(err?.message || err || 'Unknown Firestore Error');
+    if (!this.useFallback) {
+      console.warn(`Firestore error or offline state detected ("${errMsg}"). Enabling seamless local file fallback.`);
+      this.useFallback = true;
     }
-    return false;
+    return true;
   }
 
   private getLocalNews(): News[] {
@@ -364,8 +361,13 @@ export class PortalDatabase {
       this.app = initializeApp(firebaseConfig);
       this.firestore = getFirestore(this.app, firebaseConfig.firestoreDatabaseId);
 
-      // Test connectivity
-      const snap = await getDocs(query(collection(this.firestore, 'news'), limit(1)));
+      // Test connectivity with a 3-second timeout to prevent startup hangs on Cloud Run
+      const testPromise = getDocs(query(collection(this.firestore, 'news'), limit(1)));
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore connectivity test timed out (3000ms)')), 3000)
+      );
+
+      const snap = await Promise.race([testPromise, timeoutPromise]);
       
       if (snap.empty) {
         console.log('Firestore is empty. Seeding initial Marathi articles...');

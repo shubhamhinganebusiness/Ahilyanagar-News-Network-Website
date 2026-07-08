@@ -144,14 +144,14 @@ export async function uploadJsonFile(
 }
 
 /**
- * Synchronizes all site data (News and Site Settings) to 'Ahilyanagar News network' folder in Google Drive.
+ * Synchronizes all site data (News and Site Settings) to 'Ahilyanagar News Network' folder in Google Drive.
  */
 export async function syncAllSiteData(
   accessToken: string,
   newsList: any[],
   siteSettings: any
 ): Promise<{ success: boolean; folderId: string; timestamp: number }> {
-  const folderName = 'Ahilyanagar News network';
+  const folderName = 'Ahilyanagar News Network';
   
   // 1. Get or create target directory
   const folderId = await getOrCreateFolder(accessToken, folderName);

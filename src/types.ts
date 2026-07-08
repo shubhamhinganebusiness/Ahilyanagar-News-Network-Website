@@ -115,6 +115,8 @@ export interface SiteCustomization {
   // Google Drive auto-uploads settings
   googleDriveUploadFolderId?: string;
   googleDriveUploadFolderName?: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
 }
 
 export interface SiteActivityLog {

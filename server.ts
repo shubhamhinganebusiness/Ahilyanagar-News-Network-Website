@@ -21,9 +21,8 @@ async function bootstrap() {
   const app = express();
   const PORT = 3000;
 
-  // Initialize and seed database
+  // Initialize and seed database (created first, but initialized asynchronously after server is listening)
   const db = new PortalDatabase();
-  await db.initialize();
 
   // Basic parsers
   app.use(express.json({ limit: '50mb' }));
@@ -508,6 +507,60 @@ Follow these rules strictly:
     }
   });
 
+  // Helper to retrieve a valid Google Access Token (using the refresh token to refresh it if expired)
+  async function getOrRefreshGoogleToken(db: any, reqToken?: string): Promise<string | null> {
+    if (reqToken) return reqToken;
+    try {
+      const siteSettings = await db.getSettings();
+      if (!siteSettings.googleAccessToken) return null;
+
+      // Check if the current access token is valid by testing it against userinfo API
+      const testRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${siteSettings.googleAccessToken}` }
+      });
+      
+      if (testRes.ok) {
+        return siteSettings.googleAccessToken;
+      }
+
+      if (siteSettings.googleRefreshToken) {
+        console.log('Stored Google access token is invalid or expired. Refreshing using stored refresh token...');
+        const clientId = process.env.GOOGLE_CLIENT_ID || process.env.CLIENT_ID;
+        const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.CLIENT_SECRET;
+        
+        if (clientId && clientSecret) {
+          const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: siteSettings.googleRefreshToken,
+              grant_type: 'refresh_token'
+            })
+          });
+          
+          const refreshData = await refreshRes.json();
+          if (refreshRes.ok && refreshData.access_token) {
+            console.log('Successfully refreshed Google access token.');
+            await db.updateSettings({
+              googleAccessToken: refreshData.access_token
+            });
+            return refreshData.access_token;
+          } else {
+            console.error('Google token refresh failed:', refreshData);
+          }
+        } else {
+          console.warn('Google Client ID/Secret missing; cannot refresh token.');
+        }
+      }
+      return siteSettings.googleAccessToken;
+    } catch (err) {
+      console.error('Error during Google token verification/refresh:', err);
+      return null;
+    }
+  }
+
   // 4.5 POST /api/upload -> upload image from device (admin only)
   app.post('/api/upload', adminAuth, async (req, res) => {
     try {
@@ -547,8 +600,8 @@ Follow these rules strictly:
       const contentType = contentTypeMatch ? contentTypeMatch[1] : 'image/jpeg';
       await db.saveUpload(filename, contentType, data);
 
-      // Check if X-Google-Access-Token header is provided
-      const googleToken = req.headers['x-google-access-token'] as string;
+      // Get a valid Google Access Token (falls back to saved settings and refreshes if needed)
+      const googleToken = await getOrRefreshGoogleToken(db, req.headers['x-google-access-token'] as string);
       let googleDriveUrl = '';
 
       if (googleToken) {
@@ -869,9 +922,9 @@ Follow these rules strictly:
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: 'openid email profile',
-      access_type: 'online',
-      prompt: 'select_account'
+      scope: 'openid email profile https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+      access_type: 'offline',
+      prompt: 'consent'
     });
     
     res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` });
@@ -973,6 +1026,15 @@ Follow these rules strictly:
           </html>
         `);
       }
+
+      // Save tokens to settings for automatic Google Drive background integration
+      const settingsUpdate: any = {
+        googleAccessToken: tokenData.access_token
+      };
+      if (tokenData.refresh_token) {
+        settingsUpdate.googleRefreshToken = tokenData.refresh_token;
+      }
+      await db.updateSettings(settingsUpdate);
       
       const token = 'Basic ' + Buffer.from('google_admin:google_secret_verified_token_abc123').toString('base64');
       
@@ -1496,8 +1558,17 @@ Follow these rules strictly:
   }, 10000);
 
   // Bind and listen to 3000 on 0.0.0.0
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server is running beautifully on: http://0.0.0.0:${PORT}`);
+    
+    // Initialize database connection asynchronously after server starts listening
+    console.log('Post-startup: Initializing database connection...');
+    try {
+      await db.initialize();
+      console.log('Post-startup: Database initialized successfully!');
+    } catch (dbErr) {
+      console.error('Post-startup database initialization failed:', dbErr);
+    }
   });
 }
 

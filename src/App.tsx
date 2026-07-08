@@ -331,6 +331,9 @@ export default function App() {
             }
             return merged;
           });
+          if (data.googleAccessToken) {
+            setGoogleAccessToken(data.googleAccessToken);
+          }
         }
       })
       .catch((err) => {
@@ -496,9 +499,27 @@ export default function App() {
                 if (token) {
                   sessionStorage.setItem('mp_google_access_token', token);
                   localStorage.setItem('mp_google_access_token', token);
+                  // Save securely to server settings
+                  fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': sessionStorage.getItem('mp_auth_token') || ''
+                    },
+                    body: JSON.stringify({ googleAccessToken: token })
+                  }).catch((err) => console.error('Failed to save Google access token to settings:', err));
                 } else {
                   sessionStorage.removeItem('mp_google_access_token');
                   localStorage.removeItem('mp_google_access_token');
+                  // Clear from server settings
+                  fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': sessionStorage.getItem('mp_auth_token') || ''
+                    },
+                    body: JSON.stringify({ googleAccessToken: '' })
+                  }).catch((err) => console.error('Failed to clear Google access token from settings:', err));
                 }
               }}
               onGoogleLogin={handleFirebaseGoogleLogin}
