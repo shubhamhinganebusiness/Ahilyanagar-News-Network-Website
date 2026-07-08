@@ -39,7 +39,7 @@ export default function App() {
       const email = sessionStorage.getItem('mp_user_email') || '';
       const token = sessionStorage.getItem('mp_auth_token') || '';
       const photoUrl = sessionStorage.getItem('mp_user_photo') || '';
-      const gToken = sessionStorage.getItem('mp_google_access_token');
+      const gToken = localStorage.getItem('mp_google_access_token') || sessionStorage.getItem('mp_google_access_token');
 
       if (gToken) {
         setGoogleAccessToken(gToken);
@@ -72,6 +72,7 @@ export default function App() {
     sessionStorage.removeItem('mp_user_photo');
     sessionStorage.removeItem('mp_auth_token');
     sessionStorage.removeItem('mp_google_access_token');
+    localStorage.removeItem('mp_google_access_token');
     
     if (isAdminMode) {
       setIsAdminMode(false);
@@ -125,11 +126,12 @@ export default function App() {
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
       
-      // Cache Google Access Token in memory and sessionStorage
+      // Cache Google Access Token in memory, sessionStorage, and localStorage
       const credential = GoogleAuthProvider.credentialFromResult(userCredential);
       if (credential?.accessToken) {
         setGoogleAccessToken(credential.accessToken);
         sessionStorage.setItem('mp_google_access_token', credential.accessToken);
+        localStorage.setItem('mp_google_access_token', credential.accessToken);
       }
 
       // 4. Send the ID token to our secure backend verify endpoint
@@ -489,6 +491,16 @@ export default function App() {
               siteSettings={siteSettings}
               onSaveSettings={fetchSettings}
               googleAccessToken={googleAccessToken}
+              onGoogleAccessTokenChange={(token) => {
+                setGoogleAccessToken(token);
+                if (token) {
+                  sessionStorage.setItem('mp_google_access_token', token);
+                  localStorage.setItem('mp_google_access_token', token);
+                } else {
+                  sessionStorage.removeItem('mp_google_access_token');
+                  localStorage.removeItem('mp_google_access_token');
+                }
+              }}
               onGoogleLogin={handleFirebaseGoogleLogin}
             />
           ) : showWeatherView ? (
@@ -508,32 +520,19 @@ export default function App() {
               {/* Ad Banner customizable via admin */}
               <AdBanner settings={siteSettings} />
 
-              {isLoading && newsList.length === 0 ? (
-                <div className="max-w-7xl mx-auto px-4 py-20 text-center flex flex-col items-center justify-center">
-                  <div className="relative flex items-center justify-center">
-                    <div className="absolute animate-ping h-12 w-12 rounded-full bg-blue-300 opacity-20"></div>
-                    <div className="animate-spin bg-blue-50 p-4 rounded-full border border-blue-100 shadow-xs flex items-center justify-center">
-                      <Umbrella className="h-8 w-8 text-blue-600 shrink-0" />
-                    </div>
-                  </div>
-                  <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse font-sans tracking-wide">
-                    बातम्या लोड होत आहेत... रिमझिम पावसाळी वातावरण ⛈️
-                  </p>
-                </div>
-              ) : (
-                <NewsGrid
-                  newsList={newsList}
-                  currentCategory={currentCategory}
-                  searchQuery={searchQuery}
-                  onSelectArticle={handleSelectArticle}
-                  setCategory={setCategory}
-                  setSearchQuery={setSearchQuery}
-                  siteSettings={siteSettings}
-                  onToggleWeather={handleToggleWeather}
-                  authUser={authUser}
-                  addToast={addToast}
-                />
-              )}
+              <NewsGrid
+                newsList={newsList}
+                currentCategory={currentCategory}
+                searchQuery={searchQuery}
+                onSelectArticle={handleSelectArticle}
+                setCategory={setCategory}
+                setSearchQuery={setSearchQuery}
+                siteSettings={siteSettings}
+                onToggleWeather={handleToggleWeather}
+                authUser={authUser}
+                addToast={addToast}
+                isLoading={isLoading}
+              />
             </>
           )}
         </main>

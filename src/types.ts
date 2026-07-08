@@ -178,3 +178,12 @@ export interface SiteNotification {
   read: boolean;
   createdAt: string;
 }
+
+export interface SystemLog {
+  _id: string;
+  action: string;
+  details: string;
+  userEmail: string;
+  timestamp: string;
+}
+

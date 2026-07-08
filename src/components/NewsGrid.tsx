@@ -16,6 +16,7 @@ interface NewsGridProps {
   onToggleWeather?: (show: boolean) => void;
   authUser?: AuthUser | null;
   addToast?: (message: string, type: 'success' | 'error' | 'info') => void;
+  isLoading?: boolean;
 }
 
 export default function NewsGrid({
@@ -29,6 +30,7 @@ export default function NewsGrid({
   onToggleWeather,
   authUser,
   addToast,
+  isLoading,
 }: NewsGridProps) {
   
   // Filter news based on category and search query
@@ -56,6 +58,83 @@ export default function NewsGrid({
       return dateString;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-12">
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2 border-l-4 border-slate-300 pl-3">
+            <div className="h-6 w-48 bg-slate-200 animate-pulse rounded-md" />
+          </div>
+          
+          {/* Featured Article Skeleton */}
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs grid grid-cols-1 lg:grid-cols-12 gap-0">
+            <div className="lg:col-span-7 h-64 sm:h-96 bg-slate-200 animate-pulse" />
+            <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-4 bg-slate-50/50">
+              <div className="space-y-4">
+                <div className="h-3.5 w-24 bg-slate-200 animate-pulse rounded-sm" />
+                <div className="space-y-2">
+                  <div className="h-7 w-5/6 bg-slate-300 animate-pulse rounded-md" />
+                  <div className="h-7 w-2/3 bg-slate-300 animate-pulse rounded-md" />
+                </div>
+                <div className="space-y-2 pt-2">
+                  <div className="h-4 w-full bg-slate-200 animate-pulse rounded-md" />
+                  <div className="h-4 w-full bg-slate-200 animate-pulse rounded-md" />
+                  <div className="h-4 w-4/5 bg-slate-200 animate-pulse rounded-md" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-150 pt-4 mt-auto">
+                <div className="h-4 w-28 bg-slate-200 animate-pulse rounded-md" />
+                <div className="flex space-x-4">
+                  <div className="h-4 w-24 bg-slate-200 animate-pulse rounded-md" />
+                  <div className="h-4 w-16 bg-slate-200 animate-pulse rounded-md" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Grid List Skeleton */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between border-l-4 border-slate-300 pl-3">
+            <div className="h-6 w-40 bg-slate-200 animate-pulse rounded-md" />
+            <div className="h-4 w-24 bg-slate-200 animate-pulse rounded-md" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-xs flex flex-col justify-between"
+              >
+                <div className="h-48 bg-slate-200 animate-pulse shrink-0" />
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="h-3.5 w-16 bg-slate-200 animate-pulse rounded-sm" />
+                    <div className="space-y-2">
+                      <div className="h-5 w-5/6 bg-slate-300 animate-pulse rounded-md" />
+                      <div className="h-5 w-2/3 bg-slate-300 animate-pulse rounded-md" />
+                    </div>
+                    <div className="space-y-1.5 pt-1">
+                      <div className="h-3.5 w-full bg-slate-200 animate-pulse rounded-md" />
+                      <div className="h-3.5 w-5/6 bg-slate-200 animate-pulse rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-auto">
+                    <div className="h-3.5 w-16 bg-slate-200 animate-pulse rounded-md" />
+                    <div className="flex space-x-2">
+                      <div className="h-3.5 w-16 bg-slate-200 animate-pulse rounded-md" />
+                      <div className="h-3.5 w-10 bg-slate-200 animate-pulse rounded-md" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Extract featured news (first items in filtered list)
   const featuredArticle = filteredNews[0];

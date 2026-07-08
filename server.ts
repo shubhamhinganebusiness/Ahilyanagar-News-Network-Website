@@ -102,7 +102,8 @@ async function bootstrap() {
           (req as any).user = {
             role: 'superadmin',
             username: user,
-            name: 'Super Admin'
+            name: 'Super Admin',
+            email: 'shubhamhinganebusiness@gmail.com'
           };
           return next();
         }
@@ -112,7 +113,8 @@ async function bootstrap() {
           (req as any).user = {
             role: 'superadmin',
             username: 'admin',
-            name: 'Super Admin'
+            name: 'Super Admin',
+            email: 'shubhamhinganebusiness@gmail.com'
           };
           return next();
         }
@@ -123,7 +125,8 @@ async function bootstrap() {
           (req as any).user = {
             role: 'author',
             username: author.username,
-            name: author.name
+            name: author.name,
+            email: author.email || `${author.username}@majhapatra.com`
           };
           return next();
         }
@@ -319,6 +322,33 @@ Follow these rules strictly:
     }
   });
 
+  // GET /api/logs -> get administrative action logs (admin only)
+  app.get('/api/logs', adminAuth, async (req, res) => {
+    try {
+      const data = await db.getLogs();
+      res.json(data);
+    } catch (err) {
+      console.error('API Error GET /api/logs:', err);
+      res.status(500).json({ error: 'कृती नोंदी मिळवताना त्रुटी आली.' });
+    }
+  });
+
+  // POST /api/logs -> create administrative action log (admin only)
+  app.post('/api/logs', adminAuth, async (req, res) => {
+    try {
+      const { action, details } = req.body;
+      if (!action || !details) {
+        return res.status(400).json({ error: 'कृती आणि तपशील आवश्यक आहेत.' });
+      }
+      const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
+      const log = await db.createLog(action, details, userEmail);
+      res.status(201).json(log);
+    } catch (err: any) {
+      console.error('API Error POST /api/logs:', err);
+      res.status(500).json({ error: 'कृती नोंद जतन करताना त्रुटी आली.' });
+    }
+  });
+
   // 3. POST /api/news -> add new news (admin only)
   app.post('/api/news', adminAuth, async (req, res) => {
     try {
@@ -354,6 +384,9 @@ Follow these rules strictly:
         authorUsername,
         scheduledPublishDate: scheduledPublishDate || '',
       });
+
+      const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
+      await db.createLog('नवीन बातमी प्रसिद्ध केली', `शीर्षक: "${newArticle.title}" (श्रेणी: ${newArticle.category})`, userEmail).catch(console.error);
 
       res.status(201).json(newArticle);
     } catch (err: any) {
@@ -404,6 +437,10 @@ Follow these rules strictly:
       }
 
       const updatedArticle = await db.update(id, updateData);
+
+      const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
+      await db.createLog('बातमी सुधारित केली', `शीर्षक: "${updatedArticle?.title}" (श्रेणी: ${updatedArticle?.category})`, userEmail).catch(console.error);
+
       res.json(updatedArticle);
     } catch (err: any) {
       console.error('API Error PUT /news/:id:', err);
@@ -461,6 +498,9 @@ Follow these rules strictly:
         return res.status(404).json({ error: 'दिलेली बातमी सापडली नाही किंवा आधीच डिलीट केली गेली आहे.' });
       }
       
+      const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
+      await db.createLog('बातमी हटवली', `शीर्षक: "${existingArticle.title}" (श्रेणी: ${existingArticle.category})`, userEmail).catch(console.error);
+
       res.json({ success: true, message: 'बातमी यशस्वीरित्या डिलीट केली.' });
     } catch (err: any) {
       console.error('API Error DELETE /news/:id:', err);
@@ -654,6 +694,10 @@ Follow these rules strictly:
   app.post('/api/settings', checkAuth, superAdminOnly, async (req, res) => {
     try {
       const updated = await db.updateSettings(req.body);
+
+      const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
+      await db.createLog('साइट रचना/सेटिंग्ज बदलल्या', 'मुख्य व्यवस्थापकाने चॅनेलची माहिती किंवा जाहिराती बदलल्या.', userEmail).catch(console.error);
+
       res.json(updated);
     } catch (err: any) {
       console.error('API Error POST /api/settings:', err);

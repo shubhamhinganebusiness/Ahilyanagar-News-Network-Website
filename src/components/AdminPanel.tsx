@@ -13,6 +13,8 @@ import AuthorLoginsPanel from './AuthorLoginsPanel';
 import D3Analytics from './D3Analytics';
 import GoogleDrivePanel from './GoogleDrivePanel';
 import PollsPanel from './PollsPanel';
+import LogsPanel from './LogsPanel';
+import { syncAllSiteData } from '../utils/googleDrive';
 import { firebaseAppletConfig } from '../firebase-config-fallback';
 
 interface AdminPanelProps {
@@ -23,6 +25,7 @@ interface AdminPanelProps {
   siteSettings: SiteCustomization;
   onSaveSettings: () => void;
   googleAccessToken: string | null;
+  onGoogleAccessTokenChange?: (token: string | null) => void;
   onGoogleLogin: () => Promise<void>;
 }
 
@@ -34,6 +37,7 @@ export default function AdminPanel({
   siteSettings, 
   onSaveSettings,
   googleAccessToken,
+  onGoogleAccessTokenChange,
   onGoogleLogin
 }: AdminPanelProps) {
   // Login State
@@ -457,7 +461,7 @@ export default function AdminPanel({
   const [newSlideLinkUrl, setNewSlideLinkUrl] = useState('');
   const [newSlideTitle, setNewSlideTitle] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'news' | 'branding' | 'authors' | 'cutout' | 'author-logins' | 'google-drive' | 'polls'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'news' | 'branding' | 'authors' | 'cutout' | 'author-logins' | 'google-drive' | 'polls' | 'logs'>('dashboard');
   const [isSavingBranding, setIsSavingBranding] = useState(false);
 
   const handleImportDraftFromDrive = (
@@ -1128,8 +1132,23 @@ export default function AdminPanel({
       provider.setCustomParameters({
         prompt: 'select_account'
       });
+      // Add Google Drive scopes so that they are granted automatically during login
+      provider.addScope('https://www.googleapis.com/auth/drive');
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      provider.addScope('https://www.googleapis.com/auth/drive.readonly');
 
       const userCredential = await signInWithPopup(auth, provider);
+      
+      // Capture and store Google Access Token for Google Drive integration
+      const credential = GoogleAuthProvider.credentialFromResult(userCredential);
+      if (credential?.accessToken) {
+        sessionStorage.setItem('mp_google_access_token', credential.accessToken);
+        localStorage.setItem('mp_google_access_token', credential.accessToken);
+        if (onGoogleAccessTokenChange) {
+          onGoogleAccessTokenChange(credential.accessToken);
+        }
+      }
+      
       const idToken = await userCredential.user.getIdToken();
       const userEmail = userCredential.user.email || '';
 
@@ -1935,6 +1954,17 @@ export default function AdminPanel({
             >
               <BarChart3 className="h-4.5 w-4.5 text-rose-600 shrink-0" />
               <span>📊 मतदान पोल</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`flex items-center space-x-2 px-5 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer shrink-0 ${
+                activeTab === 'logs'
+                  ? 'border-rose-600 text-rose-600 bg-rose-50/20'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Activity className="h-4.5 w-4.5 text-rose-600 shrink-0" />
+              <span>📝 संवेदनशील कृती नोंदी</span>
             </button>
           </>
         )}
@@ -4667,6 +4697,8 @@ export default function AdminPanel({
         />
       ) : activeTab === 'polls' ? (
         <PollsPanel addToast={addToast} adminToken={getAuthHeader()} googleAccessToken={googleAccessToken} />
+      ) : activeTab === 'logs' ? (
+        <LogsPanel addToast={addToast} adminToken={getAuthHeader()} />
       ) : (
         /* Author Profiles management interface */
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8 space-y-6">

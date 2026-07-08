@@ -67,7 +67,12 @@ export default function GoogleDrivePanel({
   const [backupFolder, setBackupFolder] = useState<{ id: string; name: string } | null>(() => {
     const id = localStorage.getItem('mp_backup_folder_id');
     const name = localStorage.getItem('mp_backup_folder_name');
-    return id && name ? { id, name } : null;
+    if (name === 'Ahilyanagar News network' && id) {
+      return { id, name };
+    }
+    localStorage.removeItem('mp_backup_folder_id');
+    localStorage.removeItem('mp_backup_folder_name');
+    return null;
   });
 
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -283,7 +288,7 @@ export default function GoogleDrivePanel({
       // 2. Identify the backup folder ID
       let folderId = folderIdToUse || backupFolder?.id;
       if (!folderId) {
-        const folderName = 'माझापत्र बॅकअप';
+        const folderName = 'Ahilyanagar News network';
         const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
           `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
         )}&fields=files(id,name)`;
@@ -346,7 +351,7 @@ export default function GoogleDrivePanel({
 
     try {
       let folderId = backupFolder?.id;
-      const folderName = backupFolder?.name || 'माझापत्र बॅकअप';
+      const folderName = backupFolder?.name || 'Ahilyanagar News network';
 
       setBackupProgress(15);
       setBackupStatus('गुगल ड्राइव्ह फोल्डर तपासत आहे...');
@@ -548,6 +553,21 @@ export default function GoogleDrivePanel({
       setBackupFolderUrl(folderUrl);
       setBackupConflict(null);
       addToast('गुगल ड्राईव्हवर यशस्वीरित्या बॅकअप जतन केला गेला!', 'success');
+
+      // Log to system logs
+      if (adminToken) {
+        fetch('/api/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': adminToken
+          },
+          body: JSON.stringify({
+            action: 'गुगल ड्राईव्ह सिंक',
+            details: `सर्व बातम्या आणि साइट सेटिंग्ज '${folderName}' फोल्डरमध्ये यशस्वीरित्या सिंक/बॅकअप केल्या.`
+          })
+        }).catch(console.error);
+      }
       
       // Update usage stats after a tiny delay
       setTimeout(() => {
@@ -679,10 +699,171 @@ export default function GoogleDrivePanel({
     }
   };
 
+  const handleSilentAutoBackup = async () => {
+    if (!googleAccessToken) return;
+    
+    try {
+      const folderName = 'Ahilyanagar News network';
+      let folderId = localStorage.getItem('mp_backup_folder_id') || '';
+      
+      // 1. Search for the folder 'Ahilyanagar News network' if not cached
+      if (!folderId) {
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+          `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+        )}&fields=files(id,name)`;
+
+        const searchRes = await fetch(searchUrl, {
+          headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.files && searchData.files.length > 0) {
+            folderId = searchData.files[0].id;
+            setBackupFolder({ id: folderId, name: folderName });
+            localStorage.setItem('mp_backup_folder_id', folderId);
+            localStorage.setItem('mp_backup_folder_name', folderName);
+          } else {
+            // Create the folder silently
+            const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${googleAccessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: folderName,
+                mimeType: 'application/vnd.google-apps.folder'
+              })
+            });
+
+            if (createRes.ok) {
+              const createData = await createRes.json();
+              folderId = createData.id;
+              setBackupFolder({ id: folderId, name: folderName });
+              localStorage.setItem('mp_backup_folder_id', folderId);
+              localStorage.setItem('mp_backup_folder_name', folderName);
+            }
+          }
+        }
+      }
+
+      if (!folderId) return;
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const newsFileName = `News_Backup_${todayStr}.json`;
+      const settingsFileName = `SiteSettings_Backup_${todayStr}.json`;
+
+      // 2. Search if there are existing backup files with today's date in this folder
+      const checkUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+        `'${folderId}' in parents and (name='${newsFileName}' or name='${settingsFileName}') and trashed=false`
+      )}&fields=files(id,name)`;
+
+      const checkRes = await fetch(checkUrl, {
+        headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+      });
+
+      let existingNewsId = '';
+      let existingSettingsId = '';
+
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        const filesFound = checkData.files || [];
+        const newsFile = filesFound.find((f: any) => f.name === newsFileName);
+        const settingsFile = filesFound.find((f: any) => f.name === settingsFileName);
+        if (newsFile) existingNewsId = newsFile.id;
+        if (settingsFile) existingSettingsId = settingsFile.id;
+      }
+
+      // If they exist, delete them to do a clean update
+      if (existingNewsId) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${existingNewsId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+      }
+      if (existingSettingsId) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${existingSettingsId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+      }
+
+      // 3. Upload News data
+      const boundary = 'majhapatra_backup_multipart_boundary';
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const close_delim = `\r\n--${boundary}--`;
+
+      const newsMetadata = {
+        name: newsFileName,
+        parents: [folderId],
+        mimeType: 'application/json'
+      };
+
+      const newsBody = 
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(newsMetadata) +
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(newsList, null, 2) +
+        close_delim;
+
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: newsBody
+      });
+
+      // 4. Upload Site Settings data
+      const settingsMetadata = {
+        name: settingsFileName,
+        parents: [folderId],
+        mimeType: 'application/json'
+      };
+
+      const settingsBody = 
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(settingsMetadata) +
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(siteSettings, null, 2) +
+        close_delim;
+
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: settingsBody
+      });
+
+      // Update timestamp
+      localStorage.setItem('mp_last_auto_backup_time', Date.now().toString());
+      addToast(`'Ahilyanagar News network' फोल्डरमध्ये सर्व साइट डेटा स्वयंचलितपणे बॅकअप केला गेला आहे!`, 'success');
+      fetchFolderFilesAndQuota(folderId);
+
+    } catch (err) {
+      console.error('Silent auto backup failed:', err);
+    }
+  };
+
   useEffect(() => {
     if (googleAccessToken) {
       fetchGoogleDocs();
       fetchFolderFilesAndQuota();
+
+      // Trigger automatic backup silently if not backed up recently
+      const lastAutoBackup = localStorage.getItem('mp_last_auto_backup_time');
+      const now = Date.now();
+      if (!lastAutoBackup || now - parseInt(lastAutoBackup) > 15 * 60 * 1000) {
+        handleSilentAutoBackup();
+      }
     }
   }, [googleAccessToken, backupFolder?.id]);
 
@@ -1203,7 +1384,7 @@ export default function GoogleDrivePanel({
                                   color: '#cbd5e1' // slate-300
                                 },
                                 {
-                                  name: 'माझापत्र बॅकअप (Backup Size)',
+                                  name: 'Ahilyanagar News network (Backup Size)',
                                   value: quota.backupFolderSize,
                                   color: '#e11d48' // rose-600
                                 },
@@ -1290,7 +1471,7 @@ export default function GoogleDrivePanel({
                       <div className="min-w-0 text-left">
                         <span className="text-[10px] text-rose-500 block uppercase font-bold">गुगल ड्राईव्ह मार्ग</span>
                         <span className="truncate block font-black text-slate-800">
-                          {backupFolder ? backupFolder.name : 'माझापत्र बॅकअप (Default Folder)'}
+                          {backupFolder ? backupFolder.name : 'Ahilyanagar News network (Default Folder)'}
                         </span>
                       </div>
                     </div>

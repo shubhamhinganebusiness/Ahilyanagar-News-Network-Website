@@ -325,6 +325,29 @@ export class PortalDatabase {
     fs.writeFileSync(filePath, JSON.stringify(list, null, 2), 'utf-8');
   }
 
+  private getLocalLogs(): any[] {
+    const filePath = path.join(process.cwd(), 'data/logs.json');
+    const dataDir = path.dirname(filePath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf-8');
+      return [];
+    }
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  private saveLocalLogs(list: any[]) {
+    const filePath = path.join(process.cwd(), 'data/logs.json');
+    fs.writeFileSync(filePath, JSON.stringify(list, null, 2), 'utf-8');
+  }
+
+
   async initialize() {
     console.log('Initializing Firebase Firestore Web SDK connection in database module...');
     
@@ -703,6 +726,66 @@ export class PortalDatabase {
       }
       handleFirestoreError(err, OperationType.UPDATE, 'settings/site');
       return await this.getSettings();
+    }
+  }
+
+  async createLog(action: string, details: string, userEmail: string): Promise<any> {
+    const logItem = {
+      action,
+      details,
+      userEmail: userEmail || 'unknown@majhapatra.com',
+      timestamp: new Date().toISOString(),
+    };
+
+    if (this.useFallback) {
+      const list = this.getLocalLogs();
+      const id = 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      const newLog = { _id: id, ...logItem };
+      list.push(newLog);
+      if (list.length > 200) {
+        list.shift();
+      }
+      this.saveLocalLogs(list);
+      return newLog;
+    }
+
+    try {
+      const docRef = await addDoc(collection(this.firestore, 'logs'), logItem);
+      return { _id: docRef.id, ...logItem };
+    } catch (err) {
+      if (this.checkIfFallbackNeeded(err)) {
+        return this.createLog(action, details, userEmail);
+      }
+      handleFirestoreError(err, OperationType.CREATE, 'logs');
+      throw err;
+    }
+  }
+
+  async getLogs(): Promise<any[]> {
+    if (this.useFallback) {
+      const list = this.getLocalLogs();
+      return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+
+    try {
+      const snap = await getDocs(collection(this.firestore, 'logs'));
+      const list = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          _id: doc.id,
+          action: data.action,
+          details: data.details,
+          userEmail: data.userEmail || 'unknown@majhapatra.com',
+          timestamp: safeISOString(data.timestamp),
+        };
+      });
+      return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (err) {
+      if (this.checkIfFallbackNeeded(err)) {
+        return this.getLogs();
+      }
+      handleFirestoreError(err, OperationType.LIST, 'logs');
+      return [];
     }
   }
 
