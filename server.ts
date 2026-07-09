@@ -645,8 +645,20 @@ Follow these rules strictly:
       if (googleToken) {
         try {
           const siteSettings = await db.getSettings();
-          let folderId = siteSettings.googleDriveUploadFolderId;
+          let folderId = siteSettings.googleDriveUploadFolderId || '1hMqfiGvuMMErCxa__16tLzW-6i5fT0id';
           const folderName = `${siteSettings.channelName || 'माझापत्र'} अपलोड्स`;
+
+          // If folderId is not saved in siteSettings, save it now to ensure frontend visibility
+          if (folderId && !siteSettings.googleDriveUploadFolderId) {
+            try {
+              await db.updateSettings({
+                googleDriveUploadFolderId: folderId,
+                googleDriveUploadFolderName: 'अहिल्यानगर न्यूज नेटवर्क अपलोड्स (Google Drive Folder)'
+              });
+            } catch (settingsErr) {
+              console.warn('Failed to save googleDriveUploadFolderId in settings:', settingsErr);
+            }
+          }
 
           // If no folderId cached, find or create it
           if (!folderId) {
@@ -749,6 +761,25 @@ Follow these rules strictly:
             if (uploadRes.ok) {
               const uploadData = await uploadRes.json() as any;
               const fileId = uploadData.id;
+              
+              // Grant public read ("anyone" with "reader" role) permission on the uploaded file so it shows on the website
+              try {
+                await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${googleToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    role: 'reader',
+                    type: 'anyone'
+                  })
+                });
+                console.log(`Successfully granted public read permission to uploaded file ID: ${fileId}`);
+              } catch (permErr) {
+                console.warn(`Failed to set public read permission on uploaded file ID ${fileId}:`, permErr);
+              }
+
               googleDriveUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
               console.log(`File uploaded successfully to Google Drive. Direct URL: ${googleDriveUrl}`);
             } else {

@@ -1,7 +1,7 @@
 {
   "firestore": [
     {
-      "database": "ai-studio-remixmajhapatram-10800a2e-76da-48a8-a47b-ea2ac2b8b2bb",
+      "database": "ai-studio-remixremixmajhap-e87cdb36-28bc-4662-b9cc-e404deca17c2",
       "rules": "firestore.rules"
     }
   ]

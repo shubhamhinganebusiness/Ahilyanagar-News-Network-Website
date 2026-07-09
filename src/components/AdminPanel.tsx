@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage } from '../utils/safeStorage';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database } from 'lucide-react';
+import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X } from 'lucide-react';
 import { News, CategoryType, SiteCustomization, BrandAdSlide } from '../types';
 import { getYouTubeId } from './LiveTvSection';
 import RichTextEditor from './RichTextEditor';
@@ -68,6 +68,113 @@ export default function AdminPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [submitError, setSubmitError] = useState('');
+
+  // Logo Crop States & Refs
+  const [logoCropImageSrc, setLogoCropImageSrc] = useState<string | null>(null);
+  const [logoCropFileName, setLogoCropFileName] = useState<string>('logo.jpg');
+  const [logoShowCropModal, setLogoShowCropModal] = useState<boolean>(false);
+  const [logoCropZoom, setLogoCropZoom] = useState<number>(1);
+  const [logoCropX, setLogoCropX] = useState<number>(0);
+  const [logoCropY, setLogoCropY] = useState<number>(0);
+  const [isDraggingLogoCrop, setIsDraggingLogoCrop] = useState<boolean>(false);
+  const [logoDragStart, setLogoDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const logoCropImgRef = useRef<HTMLImageElement>(null);
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoCropImageSrc(reader.result as string);
+      setLogoCropFileName(file.name);
+      setLogoCropZoom(1);
+      setLogoCropX(0);
+      setLogoCropY(0);
+      setLogoShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleLogoCropSave = () => {
+    if (!logoCropImgRef.current) return;
+    const img = logoCropImgRef.current;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const displayedWidth = img.width;
+    const displayedHeight = img.height;
+    
+    const naturalScaleX = img.naturalWidth / displayedWidth;
+    const naturalScaleY = img.naturalHeight / displayedHeight;
+    
+    const containerSize = 320;
+    const viewportSize = 200;
+    const viewportLeft = (containerSize - viewportSize) / 2; // 60
+    const viewportTop = (containerSize - viewportSize) / 2; // 60
+    
+    const imgLeft = (containerSize / 2) + logoCropX - ((displayedWidth * logoCropZoom) / 2);
+    const imgTop = (containerSize / 2) + logoCropY - ((displayedHeight * logoCropZoom) / 2);
+    
+    const relativeX = (viewportLeft - imgLeft) / logoCropZoom;
+    const relativeY = (viewportTop - imgTop) / logoCropZoom;
+    const relativeWidth = viewportSize / logoCropZoom;
+    const relativeHeight = viewportSize / logoCropZoom;
+    
+    const sx = relativeX * naturalScaleX;
+    const sy = relativeY * naturalScaleY;
+    const sWidth = relativeWidth * naturalScaleX;
+    const sHeight = relativeHeight * naturalScaleY;
+    
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 512, 512);
+    
+    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const blob = base64ToBlob(croppedDataUrl);
+    const croppedFile = new File([blob], logoCropFileName, { type: 'image/jpeg' });
+    
+    setLogoShowCropModal(false);
+    handleDeviceUpload(null, 'logo', undefined, croppedFile);
+  };
+
+  const handleLogoCropMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingLogoCrop(true);
+    setLogoDragStart({ x: e.clientX - logoCropX, y: e.clientY - logoCropY });
+  };
+
+  const handleLogoCropMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingLogoCrop) return;
+    setLogoCropX(e.clientX - logoDragStart.x);
+    setLogoCropY(e.clientY - logoDragStart.y);
+  };
+
+  const handleLogoCropMouseUp = () => {
+    setIsDraggingLogoCrop(false);
+  };
+
+  const handleLogoCropTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDraggingLogoCrop(true);
+      const touch = e.touches[0];
+      setLogoDragStart({ x: touch.clientX - logoCropX, y: touch.clientY - logoCropY });
+    }
+  };
+
+  const handleLogoCropTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingLogoCrop) return;
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setLogoCropX(touch.clientX - logoDragStart.x);
+      setLogoCropY(touch.clientY - logoDragStart.y);
+    }
+  };
+
+  const handleLogoCropTouchEnd = () => {
+    setIsDraggingLogoCrop(false);
+  };
 
   // Custom iframe-friendly modal confirmation state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -844,8 +951,8 @@ export default function AdminPanel({
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadStatusText, setUploadStatusText] = useState<string>('');
 
-  const handleDeviceUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'news' | 'logo' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' | 'authorAvatar', slideIndex?: number) => {
-    const file = e.target.files?.[0];
+  const handleDeviceUpload = async (e: React.ChangeEvent<HTMLInputElement> | null, targetField: 'news' | 'logo' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' | 'authorAvatar', slideIndex?: number, directFile?: File) => {
+    const file = e ? e.target.files?.[0] : directFile;
     if (!file) return;
 
     const tracker = slideIndex !== undefined ? `slide-${slideIndex}` : targetField;
@@ -1074,7 +1181,7 @@ export default function AdminPanel({
           setUploadStatusText('');
         }, 1500);
         // Reset the file input value so same file can be chosen again
-        e.target.value = '';
+        if (e) e.target.value = '';
       }
     };
     reader.onerror = () => {
@@ -3787,11 +3894,11 @@ export default function AdminPanel({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => handleDeviceUpload(e, 'logo')}
+                        onChange={handleLogoSelect}
                         disabled={isUploading === 'logo'}
                       />
-                      <Upload className="h-3.5 w-3.5" />
-                      <span>{isUploading === 'logo' ? 'अपलोड होत आहे...' : 'डिव्हाइसमधून निवडा'}</span>
+                      <Crop className="h-3.5 w-3.5" />
+                      <span>{isUploading === 'logo' ? 'अपलोड होत आहे...' : 'निवडा व क्रॉप करा'}</span>
                     </label>
                   </div>
                   <p className="text-[10px] text-slate-400">चित्र उपलब्ध केल्यास आयकन ऐवजी थेट तुमचा स्वतःचा लोगो दर्शवला जाईल.</p>
@@ -5466,6 +5573,137 @@ export default function AdminPanel({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logo Crop Modal */}
+      {logoShowCropModal && logoCropImageSrc && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]" style={{ margin: 0 }}>
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center space-x-2">
+                <div className="bg-rose-50 text-rose-600 p-2 rounded-lg">
+                  <Crop className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 font-sans">लोगो क्रॉप करा</h3>
+                  <p className="text-[11px] text-slate-500">चित्र ड्रॅग करून आणि झूम करून मुख्य भाग वर्तुळात/चौकोनात ऍडजस्ट करा.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setLogoShowCropModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 flex flex-col items-center justify-center space-y-6 bg-slate-100/40 flex-1 overflow-y-auto">
+              {/* Interactive Cropper Area */}
+              <div 
+                className="w-80 h-80 bg-slate-900 relative overflow-hidden flex items-center justify-center rounded-2xl shadow-inner border border-slate-700/50 cursor-move select-none"
+                onMouseDown={handleLogoCropMouseDown}
+                onMouseMove={handleLogoCropMouseMove}
+                onMouseUp={handleLogoCropMouseUp}
+                onMouseLeave={handleLogoCropMouseUp}
+                onTouchStart={handleLogoCropTouchStart}
+                onTouchMove={handleLogoCropTouchMove}
+                onTouchEnd={handleLogoCropTouchEnd}
+              >
+                {/* 1:1 Aspect Mask with circular inner border overlay */}
+                <div 
+                  className="absolute w-52 h-52 border-2 border-dashed border-rose-500 pointer-events-none rounded-full shadow-[0_0_0_9999px_rgba(15,23,42,0.75)] z-10 flex items-center justify-center"
+                >
+                  {/* Subtle alignment crosshair */}
+                  <div className="absolute w-4 h-0.5 bg-rose-500/40"></div>
+                  <div className="absolute h-4 w-0.5 bg-rose-500/40"></div>
+                </div>
+
+                {/* The target image */}
+                <img
+                  ref={logoCropImgRef}
+                  src={logoCropImageSrc}
+                  alt="Crop Target"
+                  style={{ 
+                    transform: `translate(${logoCropX}px, ${logoCropY}px) scale(${logoCropZoom})`,
+                    transition: isDraggingLogoCrop ? 'none' : 'transform 0.1s ease-out'
+                  }}
+                  className="max-h-full max-w-full object-contain pointer-events-none select-none"
+                  onDragStart={(e) => e.preventDefault()}
+                />
+              </div>
+
+              {/* Sliders and Controls */}
+              <div className="w-full max-w-xs space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1 font-sans">झूम (Zoom)</span>
+                    <span className="text-slate-500 font-sans">{Math.round(logoCropZoom * 100)}%</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={() => setLogoCropZoom(prev => Math.max(1, prev - 0.25))}
+                      className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-xs transition text-slate-600 hover:text-slate-900"
+                      title="झूम कमी करा"
+                    >
+                      <span className="text-xs font-bold font-sans">-</span>
+                    </button>
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.01"
+                      value={logoCropZoom}
+                      onChange={(e) => setLogoCropZoom(parseFloat(e.target.value))}
+                      className="flex-1 accent-rose-500 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                    />
+                    <button 
+                      onClick={() => setLogoCropZoom(prev => Math.min(3, prev + 0.25))}
+                      className="p-1.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-xs transition text-slate-600 hover:text-slate-900"
+                      title="झूम वाढवा"
+                    >
+                      <span className="text-xs font-bold font-sans">+</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick alignment helpers */}
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => {
+                      setLogoCropX(0);
+                      setLogoCropY(0);
+                      setLogoCropZoom(1);
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-xs transition font-sans"
+                  >
+                    मधे आणा (Center Image)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 flex items-center justify-end space-x-3 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setLogoShowCropModal(false)}
+                className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-200 transition font-sans"
+              >
+                रद्द करा
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoCropSave}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shadow-lg shadow-rose-600/20 flex items-center gap-1.5 font-sans"
+              >
+                <Check className="h-4 w-4" />
+                <span>क्रॉप करा आणि अपलोड करा</span>
+              </button>
             </div>
           </div>
         </div>

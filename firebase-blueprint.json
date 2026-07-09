@@ -97,6 +97,55 @@
         "upvotedUsers": { "type": "array" }
       },
       "required": ["pollId", "username", "name", "commentText", "createdAt", "upvotes"]
+    },
+    "SystemLog": {
+      "title": "SystemLog",
+      "description": "Log of admin actions and system events",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["action", "details", "userEmail", "timestamp"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Aggregated daily site traffic metrics",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "views": { "type": "integer" },
+        "visitors": { "type": "integer" }
+      },
+      "required": ["date", "views", "visitors"]
+    },
+    "SiteNotification": {
+      "title": "SiteNotification",
+      "description": "A notification sent to a specific user",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "pollId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "pollId", "title", "message", "read", "createdAt"]
+    },
+    "Upload": {
+      "title": "Upload",
+      "description": "A file uploaded to the media store",
+      "type": "object",
+      "properties": {
+        "filename": { "type": "string" },
+        "contentType": { "type": "string" },
+        "data": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["filename", "contentType", "data", "createdAt"]
     }
   },
   "firestore": {
@@ -123,6 +172,22 @@
     "/poll_comments/{commentId}": {
       "schema": "PollComment",
       "description": "Collection of comments discussing polls"
+    },
+    "/logs/{logId}": {
+      "schema": "SystemLog",
+      "description": "Collection of system and admin activity logs"
+    },
+    "/analytics/{dateStr}": {
+      "schema": "Analytics",
+      "description": "Collection of daily traffic analytics documents"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "SiteNotification",
+      "description": "Collection of user notifications"
+    },
+    "/uploads/{uploadId}": {
+      "schema": "Upload",
+      "description": "Collection of file uploads"
     }
   }
 }

@@ -260,8 +260,8 @@ export class PortalDatabase {
   private checkIfFallbackNeeded(err: any): boolean {
     const errMsg = String(err?.message || err || 'Unknown Firestore Error');
     if (!this.useFallback) {
-      console.warn(`Firestore error or offline state detected ("${errMsg}"). Enabling seamless local file fallback.`);
-      this.useFallback = true;
+      console.error(`Firestore runtime error encountered: "${errMsg}". Keeping primary Firestore connection active.`);
+      return false;
     }
     return true;
   }

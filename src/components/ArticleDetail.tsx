@@ -133,9 +133,10 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     setShowCustomVideoField(false);
 
     fetch(`/api/news/${articleId}`)
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
-          throw new Error('बातमी मिळवण्यात त्रुटी आली.');
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'बातमी मिळवण्यात त्रुटी आली.');
         }
         return res.json();
       })
@@ -164,7 +165,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       .catch((err) => {
         console.error(err);
         setIsLoading(false);
-        addToast('बातमी उघडताना सर्व्हर त्रुटी आली. कृपया नंतर प्रयत्न करा.', 'error');
+        addToast(err.message || 'बातमी उघडताना सर्व्हर त्रुटी आली. कृपया नंतर प्रयत्न करा.', 'error');
         onBack();
       });
   }, [articleId]);
