@@ -33,8 +33,12 @@ async function bootstrap() {
 
   // Create upload folder if not existing
   const uploadDir = path.join(process.cwd(), 'public/uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+  } catch (dirErr) {
+    console.warn('Could not create public/uploads directory on server startup:', dirErr);
   }
 
   // Serve static uploads with persistent fallback to Firestore

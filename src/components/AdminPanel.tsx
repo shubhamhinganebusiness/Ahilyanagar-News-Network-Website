@@ -782,7 +782,7 @@ export default function AdminPanel({
   };
 
   // Client-side image compression and resizing helper to prevent 1MB Firestore & proxy limits
-  const compressImage = (base64Str: string, maxWidth = 1200, maxHeight = 1200, quality = 0.82): Promise<string> => {
+  const compressImage = (base64Str: string, maxWidth = 1200, maxHeight = 1200, quality = 0.78): Promise<string> => {
     return new Promise((resolve) => {
       const img = new window.Image();
       img.onload = () => {
@@ -808,20 +808,25 @@ export default function AdminPanel({
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          let mimeType = 'image/jpeg';
-          if (base64Str.startsWith('data:image/png')) {
-            mimeType = 'image/png';
-          } else if (base64Str.startsWith('data:image/gif')) {
-            mimeType = 'image/gif';
-          } else if (base64Str.startsWith('data:image/svg')) {
-            mimeType = 'image/svg+xml';
-          } else if (base64Str.startsWith('data:image/webp')) {
-            mimeType = 'image/webp';
+          // Determine the target compression format
+          // To ensure extremely lightweight payloads and bypass server limitations (like Hostinger's 2MB/1MB post limits),
+          // we force heavy formats like PNG/GIF to highly-compressed JPEGs.
+          let targetMime = 'image/jpeg';
+          if (base64Str.startsWith('data:image/webp')) {
+            targetMime = 'image/webp';
           }
 
-          const compressed = canvas.toDataURL(mimeType, mimeType === 'image/jpeg' || mimeType === 'image/webp' ? quality : undefined);
+          // If target is JPEG, fill the canvas with a solid white background first
+          // to gracefully handle any transparency (e.g. transparent PNG logos/avatars) without turning transparent areas black
+          if (targetMime === 'image/jpeg') {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Generate the compressed data URL
+          const compressed = canvas.toDataURL(targetMime, quality);
           resolve(compressed);
         } else {
           resolve(base64Str);
@@ -943,8 +948,18 @@ export default function AdminPanel({
           });
 
           if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'इमेज अपलोड करण्यात एरर आला.');
+            let errorMsg = '';
+            try {
+              const errData = await res.json();
+              errorMsg = errData.error;
+            } catch (jsonErr) {
+              if (res.status === 413) {
+                errorMsg = 'चित्र खूप मोठे आहे (Payload Too Large). कृपया लहान किंवा कॉम्प्रेस केलेले चित्र निवडा.';
+              } else {
+                errorMsg = `सर्व्हर एरर (HTTP ${res.status}): होस्टिंग सर्व्हरवर फाईल अपलोड मर्यादा किंवा फोल्डर परमिशन तपासा.`;
+              }
+            }
+            throw new Error(errorMsg || `इमेज अपलोड करण्यात एरर आला (HTTP ${res.status}).`);
           }
 
           setUploadProgress(95);
