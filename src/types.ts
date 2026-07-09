@@ -117,6 +117,7 @@ export interface SiteCustomization {
   googleDriveUploadFolderName?: string;
   googleAccessToken?: string;
   googleRefreshToken?: string;
+  enableFirebaseStorage?: boolean;
 }
 
 export interface SiteActivityLog {

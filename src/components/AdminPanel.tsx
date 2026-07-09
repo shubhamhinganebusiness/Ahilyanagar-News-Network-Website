@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage } from '../utils/safeStorage';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen } from 'lucide-react';
+import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database } from 'lucide-react';
 import { News, CategoryType, SiteCustomization, BrandAdSlide } from '../types';
 import { getYouTubeId } from './LiveTvSection';
 import RichTextEditor from './RichTextEditor';
@@ -413,6 +413,7 @@ export default function AdminPanel({
   const [adBannerLink, setAdBannerLink] = useState<string>(() => siteSettings?.adBannerLink || '');
   const [adBannerBgColor, setAdBannerBgColor] = useState<string>(() => siteSettings?.adBannerBgColor || '#e11d48');
   const [liveTvUrl, setLiveTvUrl] = useState<string>(() => siteSettings?.liveTvUrl || '');
+  const [enableFirebaseStorage, setEnableFirebaseStorage] = useState<boolean>(() => siteSettings?.enableFirebaseStorage === true);
 
   // Detailed Reading Page Advertisements (4 Ads) States
   const [detailAd1Enabled, setDetailAd1Enabled] = useState<boolean>(() => siteSettings?.detailAd1Enabled !== false);
@@ -762,6 +763,24 @@ export default function AdminPanel({
     reader.readAsDataURL(file);
   };
 
+  // Client-side base64 to Blob helper that does NOT make network calls (prevents CSP/CORS net::ERR_FAILED in sandboxed frames)
+  const base64ToBlob = (base64Str: string): Blob => {
+    try {
+      const parts = base64Str.split(';base64,');
+      const contentType = parts[0].split(':')[1] || 'image/jpeg';
+      const raw = window.atob(parts[1] || parts[0]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      return new Blob([uInt8Array], { type: contentType });
+    } catch (err) {
+      console.error('base64ToBlob error, creating simple fallback blob:', err);
+      return new Blob([], { type: 'image/jpeg' });
+    }
+  };
+
   // Client-side image compression and resizing helper to prevent 1MB Firestore & proxy limits
   const compressImage = (base64Str: string, maxWidth = 1200, maxHeight = 1200, quality = 0.82): Promise<string> => {
     return new Promise((resolve) => {
@@ -877,7 +896,7 @@ export default function AdminPanel({
           firebaseConfig = firebaseAppletConfig;
         }
 
-        if (firebaseConfig && firebaseConfig.apiKey) {
+        if (enableFirebaseStorage && firebaseConfig && firebaseConfig.apiKey) {
           try {
             setUploadProgress(45);
             setUploadStatusText('थेट क्लाउड स्टोरेजवर सुरक्षित अपलोड तपासत आहे...');
@@ -887,8 +906,7 @@ export default function AdminPanel({
             const storageRef = ref(storage, `${folderName}/${Date.now()}-${file.name}`);
             
             // Convert compressed base64 data to blob
-            const response = await fetch(base64Data);
-            const blob = await response.blob();
+            const blob = base64ToBlob(base64Data);
             
             const uploadSnapshot = await uploadBytes(storageRef, blob);
             uploadedUrl = await getDownloadURL(uploadSnapshot.ref);
@@ -1055,6 +1073,7 @@ export default function AdminPanel({
       setAdBannerLink(siteSettings.adBannerLink || '');
       setAdBannerBgColor(siteSettings.adBannerBgColor || '#e11d48');
       setLiveTvUrl(siteSettings.liveTvUrl || '');
+      setEnableFirebaseStorage(siteSettings.enableFirebaseStorage === true);
 
       // Detailed Reading Page Advertisements synchronization
       setDetailAd1Enabled(siteSettings.detailAd1Enabled !== false);
@@ -1447,6 +1466,7 @@ export default function AdminPanel({
         adBannerLink: adBannerLink.trim(),
         adBannerBgColor: adBannerBgColor.trim(),
         liveTvUrl: liveTvUrl.trim(),
+        enableFirebaseStorage,
 
         // Detailed Reading Page Advertisements (4 Ads) payload
         detailAd1Enabled,
@@ -1569,6 +1589,7 @@ export default function AdminPanel({
         adBannerLink: updatedFields && 'adBannerLink' in updatedFields ? updatedFields.adBannerLink : adBannerLink.trim(),
         adBannerBgColor: updatedFields && 'adBannerBgColor' in updatedFields ? updatedFields.adBannerBgColor : adBannerBgColor.trim(),
         liveTvUrl: updatedFields && 'liveTvUrl' in updatedFields ? updatedFields.liveTvUrl : liveTvUrl.trim(),
+        enableFirebaseStorage: updatedFields && 'enableFirebaseStorage' in updatedFields ? updatedFields.enableFirebaseStorage : enableFirebaseStorage,
 
         detailAd1Enabled: updatedFields && 'detailAd1Enabled' in updatedFields ? updatedFields.detailAd1Enabled : detailAd1Enabled,
         detailAd1ImageUrl: updatedFields && 'detailAd1ImageUrl' in updatedFields ? updatedFields.detailAd1ImageUrl : detailAd1ImageUrl.trim(),
@@ -4232,11 +4253,47 @@ export default function AdminPanel({
               </div>
             </div>
 
-            {/* Row 7: Brand Advertisement Image Slider Customization */}
+            {/* Row 7: Media and Cloud Storage Customization */}
+            <div id="settings-media-storage" className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
+              <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
+                <Database className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>७. मीडिया आणि क्लाउड स्टोरेज (Media & Cloud Storage)</span>
+              </h4>
+
+              <div className="flex flex-col space-y-2 bg-white p-4 rounded-lg border border-slate-200">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="enableFirebaseStorage"
+                    checked={enableFirebaseStorage}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setEnableFirebaseStorage(val);
+                      await autoSaveBranding({ enableFirebaseStorage: val });
+                      addActivityLog(val ? 'थेट क्लाउड स्टोरेजवर इमेज अपलोड सुरू केले.' : 'थेट क्लाउड स्टोरेजवर इमेज अपलोड बंद केले.');
+                    }}
+                    className="h-4.5 w-4.5 text-rose-600 focus:ring-rose-500 border-slate-300 rounded cursor-pointer"
+                  />
+                  <label htmlFor="enableFirebaseStorage" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    थेट फायरबेस क्लाउड स्टोरेजवर अपलोड सक्षम करा (Enable Direct Firebase Storage Uploads)
+                  </label>
+                </div>
+                <div className="pl-7 text-[11px] text-slate-500 space-y-1.5 leading-relaxed">
+                  <p>
+                    <strong>टीप (Note):</strong> जर हे पर्याय बंद असेल (डीफॉल्ट), तर अपलोड केलेल्या सर्व प्रतिमा आणि चित्रे अत्यंत विश्वासार्ह व सुरक्षित अशा अंतर्गत सर्व्हर मेमरीमध्ये जतन केल्या जातील आणि गुगल ड्राईव्हवर सुरक्षितरित्या बॅकअप घेतल्या जातील.
+                  </p>
+                  <p>
+                    जर तुमच्या फायरबेस कन्सोलवर <strong>Firebase Storage</strong> सेवा सुरू असेल आणि कन्सोलमध्ये सुरक्षितता नियम (Rules) व CORS पॉलिसी योग्य प्रकारे सेट असतील, तरच हे चालू करा. कन्सोलवर योग्य सेटअप नसल्यास थेट ब्राऊझरवरून <code>ERR_FAILED</code> एरर दिसू शकतो.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 8: Brand Advertisement Image Slider Customization */}
             <div id="settings-brand-ads-slider" className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
                 <Images className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>७. इतर ब्रँड जाहिराती स्लाइडर (Other Brand Advertisement Slider Section)</span>
+                <span>८. इतर ब्रँड जाहिराती स्लाइडर (Other Brand Advertisement Slider Section)</span>
               </h4>
 
               <div className="flex items-center space-x-3 bg-white p-3.5 rounded-lg border border-slate-200">
@@ -4709,6 +4766,7 @@ export default function AdminPanel({
                     setAdBannerLink(siteSettings.adBannerLink || '');
                     setAdBannerBgColor(siteSettings.adBannerBgColor || '#e11d48');
                     setLiveTvUrl(siteSettings.liveTvUrl || '');
+                    setEnableFirebaseStorage(siteSettings.enableFirebaseStorage === true);
                     setBrandAdsEnabled(siteSettings.brandAdsEnabled !== undefined ? siteSettings.brandAdsEnabled : true);
                     setBrandAdsSlides(siteSettings.brandAdsSlides || []);
                     setCustFooterLink1Text(siteSettings.footerLink1Text || '');

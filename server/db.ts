@@ -248,7 +248,8 @@ const defaultSettings: SiteCustomization = {
       twitterUrl: 'https://twitter.com/majhapatra_sports',
       email: 'sports@majhapatra.com'
     }
-  ]
+  ],
+  enableFirebaseStorage: false
 };
 
 export class PortalDatabase {
