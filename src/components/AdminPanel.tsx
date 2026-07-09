@@ -1613,8 +1613,22 @@ export default function AdminPanel({
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'साइट रचना जतन करताना एरर आला.');
+        let errorMsg = '';
+        try {
+          const errData = await res.json();
+          errorMsg = errData.error;
+        } catch (jsonErr) {
+          if (res.status === 413) {
+            errorMsg = 'चित्रांचा डेटा किंवा फाईलचा आकार खूप मोठा आहे (HTTP 413 Payload Too Large). कृपया जाहिरातीचे किंवा लोगोचे चित्र अधिक कॉम्प्रेस करून लहान आकारात अपलोड करा.';
+          } else if (res.status === 403) {
+            errorMsg = 'अधिकार उपलब्ध नाहीत (HTTP 403): साइट रचना बदलण्याचा अधिकार केवळ मुख्य व्यवस्थापकाला (Super Admin) आहे.';
+          } else if (res.status === 404) {
+            errorMsg = 'सर्व्हरवरील एंडपॉइंट सापडला नाही (HTTP 404). कृपया डेव्हलपमेंट सर्व्हर रीस्टार्ट करा.';
+          } else {
+            errorMsg = `सर्व्हर एरर (HTTP ${res.status}): डेटा जतन करताना तांत्रिक चूक झाली.`;
+          }
+        }
+        throw new Error(errorMsg || `साइट रचना जतन करताना एरर आला (HTTP ${res.status}).`);
       }
 
       const successMsg = 'साइट रचना आणि ब्रँडिंग यशस्वीरित्या जतन केले गेले!';
@@ -4322,7 +4336,7 @@ export default function AdminPanel({
                 <span>७. मीडिया आणि क्लाउड स्टोरेज (Media & Cloud Storage)</span>
               </h4>
 
-              <div className="flex flex-col space-y-2 bg-white p-4 rounded-lg border border-slate-200">
+              <div className="flex flex-col space-y-4 bg-white p-4 rounded-lg border border-slate-200">
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
@@ -4340,13 +4354,55 @@ export default function AdminPanel({
                     थेट फायरबेस क्लाउड स्टोरेजवर अपलोड सक्षम करा (Enable Direct Firebase Storage Uploads)
                   </label>
                 </div>
-                <div className="pl-7 text-[11px] text-slate-500 space-y-1.5 leading-relaxed">
+                <div className="pl-7 text-[11px] text-slate-500 space-y-2 leading-relaxed">
                   <p>
                     <strong>टीप (Note):</strong> जर हे पर्याय बंद असेल (डीफॉल्ट), तर अपलोड केलेल्या सर्व प्रतिमा आणि चित्रे अत्यंत विश्वासार्ह व सुरक्षित अशा अंतर्गत सर्व्हर मेमरीमध्ये जतन केल्या जातील आणि गुगल ड्राईव्हवर सुरक्षितरित्या बॅकअप घेतल्या जातील.
                   </p>
                   <p>
-                    जर तुमच्या फायरबेस कन्सोलवर <strong>Firebase Storage</strong> सेवा सुरू असेल आणि कन्सोलमध्ये सुरक्षितता नियम (Rules) व CORS पॉलिसी योग्य प्रकारे सेट असतील, तरच हे चालू करा. कन्सोलवर योग्य सेटअप नसल्यास थेट ब्राऊझरवरून <code>ERR_FAILED</code> एरर दिसू शकतो.
+                    जर तुमच्या फायरबेस कन्सोलवर <strong>Firebase Storage</strong> सेवा सुरू असेल आणि कन्सोलमध्ये सुरक्षितता नियम (Rules) व CORS पॉलिसी योग्य प्रकारे सेट असतील, तरच हे चालू करा. कन्सोलवर योग्य सेटअप नसल्यास थेट ब्राऊझरवरून <code>CORS Policy Blocked</code> एरर दिसू शकतो.
                   </p>
+                </div>
+
+                {/* Expanded CORS Config Guide */}
+                <div className="mt-3 border-t border-slate-100 pt-3 pl-7 space-y-3">
+                  <span className="text-xs font-extrabold text-slate-700 block uppercase tracking-wider">
+                    🌐 डोमेनसाठी CORS एरर कसा सोडवायचा? (How to Solve CORS Error for ahilyanagarnewsnetwork.in)
+                  </span>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-[11px] text-amber-900 space-y-1.5 leading-relaxed font-sans">
+                    <p className="font-bold">🚨 कारण (Reason):</p>
+                    <p>
+                      तुम्ही तुमची साईट <code>https://ahilyanagarnewsnetwork.in</code> वर होस्ट केली आहे. सुरक्षा नियमांमुळे, फायरबेस स्टोरेज तुमच्या स्वतःच्या डोमेनवरून थेट फाईल अपलोड ब्लॉक करते जोपर्यंत तुम्ही CORS परवानगी सेट करत नाही.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold text-slate-600">पायरी १: खालील कोड कॉपी करा आणि <code>cors.json</code> नावाच्या फाईलमध्ये सेव्ह करा:</p>
+                    <pre className="bg-slate-900 text-slate-100 p-2.5 rounded-md text-[10px] font-mono overflow-x-auto leading-normal">
+{`[
+  {
+    "origin": ["https://ahilyanagarnewsnetwork.in", "http://localhost:3000"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "responseHeader": ["Content-Type", "Authorization", "x-goog-meta-filename"],
+    "maxAgeSeconds": 3600
+  }
+]`}
+                    </pre>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-slate-600">पायरी २: Google Cloud Shell किंवा तुमच्या कॉम्प्युटरच्या टर्मिनलमध्ये खालील कमांड चालवा:</p>
+                    <div className="bg-slate-900 text-rose-400 p-2.5 rounded-md text-[10px] font-mono break-all leading-normal select-all">
+                      gcloud storage buckets update gs://gen-lang-client-0237037046.firebasestorage.app --cors-file=cors.json
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      (टीप: जर तुम्ही <code>gsutil</code> वापरत असाल तर: <code>gsutil cors set cors.json gs://gen-lang-client-0237037046.firebasestorage.app</code> चालवा)
+                    </p>
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-[11px] text-emerald-800">
+                    <strong>💡 पर्यायी आणि सोपा उपाय (Alternative Quick Fix):</strong> जर तुम्हाला वरील पायऱ्या करायच्या नसतील, तर तुम्ही फक्त वरील "थेट फायरबेस क्लाउड स्टोरेजवर अपलोड सक्षम करा" चा <strong>चेकबॉक्स बंद (Uncheck) ठेवा</strong>. यामुळे सिस्टम आपोआप अंतर्गत सुरक्षित सर्व्हरवर चित्रे जतन करेल आणि गुगल ड्राईव्हवर बॅकअप घेईल!
+                  </div>
                 </div>
               </div>
             </div>

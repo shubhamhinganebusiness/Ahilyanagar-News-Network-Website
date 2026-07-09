@@ -792,7 +792,18 @@ Follow these rules strictly:
       res.json(updated);
     } catch (err: any) {
       console.error('API Error POST /api/settings:', err);
-      res.status(500).json({ error: 'साइट रचना जतन करण्यात अडचण आली.' });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // If error contains Firestore details, parse or display them neatly
+      let parsedError = errMsg;
+      try {
+        if (errMsg.startsWith('{') && errMsg.endsWith('}')) {
+          const parsed = JSON.parse(errMsg);
+          parsedError = parsed.error || errMsg;
+        }
+      } catch (pe) {
+        // ignore
+      }
+      res.status(500).json({ error: `साइट रचना जतन करण्यात अडचण आली: ${parsedError}` });
     }
   });
 
