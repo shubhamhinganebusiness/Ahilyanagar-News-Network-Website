@@ -34,7 +34,8 @@ Only upload the essential files. **Do NOT upload the `node_modules` folder** (it
 
 Upload these files & folders to your domain's root folder (`public_html` or the specified Node.js application directory):
 - `dist/` (Entire folder containing built frontend & backend bundle)
-- `public/` (Contains public assets and upload fallback folder)
+- `public/` (Contains public assets and upload folder)
+- `data/` (Highly critical: stores your local news, settings, custom logs, and image fallbacks)
 - `firebase-applet-config.json` (Required for Firestore & Storage connection)
 - `package.json`
 - `package-lock.json`
@@ -113,4 +114,11 @@ Because your domain name has changed (e.g., from `localhost` to `yourdomain.com`
 ## 💾 7. Verifying Features & Media Uploads
 
 - **Firestore**: All articles, settings, polls, and authors will load securely because `dist/server.cjs` automatically reads `firebase-applet-config.json` to instantiate the database connection.
-- **Media Uploads**: The application automatically checks if direct Firebase Storage upload is configured. If not, it falls back to secure server uploads. All uploaded images are persistent and visible.
+- **Bulletproof Media Uploads**: 
+  1. The client-side automatically compresses all uploads to keep them extremely fast and compact (under 150KB).
+  2. The application checks if direct Firebase Storage upload is configured. If not, it falls back to secure server uploads.
+  3. The server implements a **Double-Persistent Fallback** for uploads:
+     - It tries to save files to disk (`public/uploads` and `dist/uploads`).
+     - It **simultaneously** backs up files to the secure local database store in `data/uploads.json` AND to Firestore.
+     - Even if Hostinger's filesystem is read-only, ephemeral, or wipes folders on server restarts, the images are safely fetched and rendered directly from the `data/uploads.json` database fallback seamlessly!
+  4. **Always ensure the `data/` folder is uploaded and has write permissions.**

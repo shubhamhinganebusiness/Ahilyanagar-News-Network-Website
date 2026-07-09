@@ -992,8 +992,45 @@ export class PortalDatabase {
     }
   }
 
+  private getLocalUploadsMap(): Record<string, { contentType: string; data: string }> {
+    const filePath = path.join(process.cwd(), 'data/uploads.json');
+    if (!fs.existsSync(filePath)) {
+      if (!fs.existsSync(path.dirname(filePath))) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
+      fs.writeFileSync(filePath, JSON.stringify({}, null, 2), 'utf-8');
+      return {};
+    }
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  private saveLocalUploadsMap(map: Record<string, { contentType: string; data: string }>) {
+    try {
+      const filePath = path.join(process.cwd(), 'data/uploads.json');
+      if (!fs.existsSync(path.dirname(filePath))) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
+      fs.writeFileSync(filePath, JSON.stringify(map, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Could not write uploads map to local data/uploads.json:', e);
+    }
+  }
+
   async saveUpload(filename: string, contentType: string, base64Data: string): Promise<boolean> {
-    if (this.useFallback) return false;
+    // Always backup to local data/uploads.json
+    try {
+      const map = this.getLocalUploadsMap();
+      map[filename] = { contentType, data: base64Data };
+      this.saveLocalUploadsMap(map);
+    } catch (e) {
+      console.warn('Failed to save upload to local backup:', e);
+    }
+
+    if (this.useFallback) return true;
     try {
       await setDoc(doc(this.firestore, 'uploads', filename), {
         filename,
@@ -1009,6 +1046,16 @@ export class PortalDatabase {
   }
 
   async getUpload(filename: string): Promise<{ contentType: string; data: string } | null> {
+    // Try from local uploads.json first (highly responsive and works even on read-only/offline/restricting filesystems)
+    try {
+      const map = this.getLocalUploadsMap();
+      if (map[filename]) {
+        return map[filename];
+      }
+    } catch (e) {
+      console.warn('Error reading upload from local map:', e);
+    }
+
     if (this.useFallback) return null;
     try {
       const docSnap = await getDoc(doc(this.firestore, 'uploads', filename));
