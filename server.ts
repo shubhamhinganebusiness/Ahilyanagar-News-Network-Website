@@ -21,6 +21,9 @@ async function bootstrap() {
   const app = express();
   const PORT = 3000;
 
+  // Trust proxy for secure cookies/headers when behind standard load balancers/proxies
+  app.set('trust proxy', true);
+
   // Initialize and seed database (created first, but initialized asynchronously after server is listening)
   const db = new PortalDatabase();
 
@@ -945,7 +948,7 @@ Follow these rules strictly:
     }
     
     const host = req.get('host');
-    const protocol = req.protocol;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const redirectUri = `${protocol}://${host}/auth/callback/google`;
     
     const params = new URLSearchParams({
@@ -963,6 +966,7 @@ Follow these rules strictly:
   // Google OAuth Callback Handler for Super Admin with strict Email verification
   app.get('/auth/callback/google', async (req, res) => {
     const { code, error } = req.query;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     
     if (error) {
       return res.send(`
@@ -994,7 +998,7 @@ Follow these rules strictly:
               1. Google Cloud Console वर जा.<br/>
               2. OAuth 2.0 Client ID तयार करा.<br/>
               3. Redirect URI म्हणून हे जोडा:<br/>
-              <code>${req.protocol}://${req.get('host')}/auth/callback/google</code><br/>
+              <code>${protocol}://${req.get('host')}/auth/callback/google</code><br/>
               4. AI Studio Settings > Secrets मध्ये हे सेट करा:<br/>
               - GOOGLE_CLIENT_ID<br/>
               - GOOGLE_CLIENT_SECRET
@@ -1006,7 +1010,7 @@ Follow these rules strictly:
     }
     
     try {
-      const redirectUri = `${req.protocol}://${req.get('host')}/auth/callback/google`;
+      const redirectUri = `${protocol}://${req.get('host')}/auth/callback/google`;
       
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
