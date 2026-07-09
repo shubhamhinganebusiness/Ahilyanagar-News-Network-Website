@@ -19,7 +19,7 @@ const ai = new GoogleGenAI({
 
 async function bootstrap() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Trust proxy for secure cookies/headers when behind standard load balancers/proxies
   app.set('trust proxy', true);
