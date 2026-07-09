@@ -300,8 +300,12 @@ export class PortalDatabase {
   }
 
   private saveLocalSettings(settings: SiteCustomization) {
-    const filePath = path.join(process.cwd(), 'data/settings.json');
-    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+    try {
+      const filePath = path.join(process.cwd(), 'data/settings.json');
+      fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Could not write settings to local data/settings.json (filesystem may be read-only):', e);
+    }
   }
 
   private getLocalAuthors(): AuthorAccount[] {
@@ -695,7 +699,44 @@ export class PortalDatabase {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const firestoreData = docSnap.data();
-        const merged = { ...defaultSettings, ...firestoreData, ...local };
+        
+        // Merge intelligently: prioritize non-empty custom values, and prioritize firestoreData as the central db
+        const merged = { ...defaultSettings };
+        const allKeys = Array.from(new Set([
+          ...Object.keys(defaultSettings),
+          ...Object.keys(local),
+          ...Object.keys(firestoreData)
+        ])) as Array<keyof SiteCustomization>;
+
+        for (const key of allKeys) {
+          const defaultVal = defaultSettings[key];
+          const localVal = local[key];
+          const firestoreVal = firestoreData[key];
+
+          // Check if values are custom (different from default settings and not empty)
+          // Note: for channelLogoUrl, we also treat "/logo.jpg" as a default/non-custom value
+          const isLocalCustom = localVal !== undefined && localVal !== null && localVal !== '' && localVal !== defaultVal && (key !== 'channelLogoUrl' || localVal !== '/logo.jpg');
+          const isFirestoreCustom = firestoreVal !== undefined && firestoreVal !== null && firestoreVal !== '' && firestoreVal !== defaultVal && (key !== 'channelLogoUrl' || firestoreVal !== '/logo.jpg');
+
+          if (isLocalCustom && !isFirestoreCustom) {
+            (merged as any)[key] = localVal;
+          } else if (isFirestoreCustom && !isLocalCustom) {
+            (merged as any)[key] = firestoreVal;
+          } else if (isLocalCustom && isFirestoreCustom) {
+            const isLocalUpload = typeof localVal === 'string' && (localVal.startsWith('/uploads/') || localVal.includes('googleusercontent.com') || localVal.includes('drive.google.com'));
+            const isFirestoreUpload = typeof firestoreVal === 'string' && (firestoreVal.startsWith('/uploads/') || firestoreVal.includes('googleusercontent.com') || firestoreVal.includes('drive.google.com'));
+
+            if (isLocalUpload && !isFirestoreUpload) {
+              (merged as any)[key] = localVal;
+            } else if (isFirestoreUpload && !isLocalUpload) {
+              (merged as any)[key] = firestoreVal;
+            } else {
+              (merged as any)[key] = firestoreVal;
+            }
+          } else {
+            (merged as any)[key] = firestoreVal !== undefined ? firestoreVal : (localVal !== undefined ? localVal : defaultVal);
+          }
+        }
         
         // Sync local-first changes (like uploaded logo URL) back to Firestore if they differ
         const isDifferent = JSON.stringify(firestoreData) !== JSON.stringify(merged);
