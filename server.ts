@@ -48,32 +48,41 @@ async function bootstrap() {
       const backup = await db.getUpload(filename);
       if (backup && backup.data) {
         // Recover the file and cache it locally
-        const matches = backup.data.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          const buffer = Buffer.from(matches[2], 'base64');
-          
-          // Ensure directory exists
-          const uploadDir = path.join(process.cwd(), 'public/uploads');
-          if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        let base64Data = backup.data;
+        const base64Marker = ';base64,';
+        const markerIndex = backup.data.indexOf(base64Marker);
+        if (markerIndex !== -1) {
+          base64Data = backup.data.substring(markerIndex + base64Marker.length);
+        }
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Try to write local cache but don't fail if read-only filesystem
+          try {
+            const uploadDir = path.join(process.cwd(), 'public/uploads');
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            await fs.promises.writeFile(filePath, buffer);
+          } catch (writeErr) {
+            console.warn(`Could not cache recovered file ${filename} to public/uploads disk (filesystem may be read-only):`, writeErr);
           }
           
-          // Write to local cache
-          await fs.promises.writeFile(filePath, buffer);
-          
-          // Also write to dist/uploads if in production
+          // Also write to dist/uploads if in production (optional cache)
           if (process.env.NODE_ENV === 'production') {
-            const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
-            if (!fs.existsSync(prodUploadDir)) {
-              fs.mkdirSync(prodUploadDir, { recursive: true });
+            try {
+              const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
+              if (!fs.existsSync(prodUploadDir)) {
+                fs.mkdirSync(prodUploadDir, { recursive: true });
+              }
+              await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
+            } catch (writeErr2) {
+              console.warn(`Could not cache recovered file ${filename} to dist/uploads disk:`, writeErr2);
             }
-            await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
           }
 
           console.log(`Successfully recovered ${filename} from Firestore and cached locally.`);
           return res.contentType(backup.contentType || 'image/jpeg').send(buffer);
         }
-      }
     } catch (err) {
       console.error(`Failed to recover upload ${filename} from Firestore:`, err);
     }
@@ -570,12 +579,23 @@ Follow these rules strictly:
       }
 
       // Convert base64 data to binary buffer
-      const matches = data.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
-      if (!matches || matches.length !== 3) {
-        return res.status(400).json({ error: 'अवैध इमेज डेटा फॉर्मेट.' });
+      let base64Data = '';
+      let contentType = 'image/jpeg';
+
+      const base64Marker = ';base64,';
+      const markerIndex = data.indexOf(base64Marker);
+
+      if (markerIndex !== -1) {
+        base64Data = data.substring(markerIndex + base64Marker.length);
+        const prefix = data.substring(0, markerIndex);
+        const mimeMatch = prefix.match(/^data:([^;]+)/);
+        if (mimeMatch) {
+          contentType = mimeMatch[1];
+        }
+      } else {
+        base64Data = data;
       }
 
-      const base64Data = matches[2];
       const buffer = Buffer.from(base64Data, 'base64');
 
       // Create unique filename
@@ -583,22 +603,32 @@ Follow these rules strictly:
       const filename = `${Date.now()}-${Math.round(Math.random() * 1e5)}_${cleanName}`;
       const filePath = path.join(uploadDir, filename);
 
-      // Save to disk
-      await fs.promises.writeFile(filePath, buffer);
+      // Save to disk (try but don't fail if read-only filesystem)
+      try {
+        await fs.promises.writeFile(filePath, buffer);
+      } catch (writeErr) {
+        console.warn(`Could not write uploaded file ${filename} to public/uploads disk (filesystem may be read-only):`, writeErr);
+      }
 
-      // Also write to dist/uploads if NODE_ENV is production and dist exists
-      const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
+      // Also write to dist/uploads if NODE_ENV is production (optional cache)
       if (process.env.NODE_ENV === 'production') {
-        if (!fs.existsSync(prodUploadDir)) {
-          fs.mkdirSync(prodUploadDir, { recursive: true });
+        try {
+          const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
+          if (!fs.existsSync(prodUploadDir)) {
+            fs.mkdirSync(prodUploadDir, { recursive: true });
+          }
+          await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
+        } catch (writeErr2) {
+          console.warn(`Could not write uploaded file ${filename} to dist/uploads disk:`, writeErr2);
         }
-        await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
       }
 
       // Also save to Firestore to persist across restarts/deploys
-      const contentTypeMatch = data.match(/^data:([^;]+);base64,/);
-      const contentType = contentTypeMatch ? contentTypeMatch[1] : 'image/jpeg';
-      await db.saveUpload(filename, contentType, data);
+      try {
+        await db.saveUpload(filename, contentType, data);
+      } catch (dbErr) {
+        console.warn(`Firestore backup upload failed for ${filename}:`, dbErr);
+      }
 
       // Get a valid Google Access Token (falls back to saved settings and refreshes if needed)
       const googleToken = await getOrRefreshGoogleToken(db, req.headers['x-google-access-token'] as string);
