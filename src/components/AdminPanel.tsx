@@ -762,6 +762,59 @@ export default function AdminPanel({
     reader.readAsDataURL(file);
   };
 
+  // Client-side image compression and resizing helper to prevent 1MB Firestore & proxy limits
+  const compressImage = (base64Str: string, maxWidth = 1200, maxHeight = 1200, quality = 0.82): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        // Maintain aspect ratio
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          let mimeType = 'image/jpeg';
+          if (base64Str.startsWith('data:image/png')) {
+            mimeType = 'image/png';
+          } else if (base64Str.startsWith('data:image/gif')) {
+            mimeType = 'image/gif';
+          } else if (base64Str.startsWith('data:image/svg')) {
+            mimeType = 'image/svg+xml';
+          } else if (base64Str.startsWith('data:image/webp')) {
+            mimeType = 'image/webp';
+          }
+
+          const compressed = canvas.toDataURL(mimeType, mimeType === 'image/jpeg' || mimeType === 'image/webp' ? quality : undefined);
+          resolve(compressed);
+        } else {
+          resolve(base64Str);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64Str);
+      };
+      img.src = base64Str;
+    });
+  };
+
   // Device Image upload helper
   const [isUploading, setIsUploading] = useState<string | null>(null); // tracks which field is uploading
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -779,7 +832,7 @@ export default function AdminPanel({
 
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const base64Data = event.target?.result as string;
+      let base64Data = event.target?.result as string;
       if (!base64Data) {
         setIsUploading(null);
         setUploadProgress(0);
@@ -788,67 +841,68 @@ export default function AdminPanel({
         return;
       }
 
+      setUploadProgress(20);
+      setUploadStatusText('चित्र कॉम्प्रेस व रीसाईझ केले जात आहे...');
+
+      try {
+        // Use conservative sizes (max 600px for logo/avatar, 1200px for banners/news/slides)
+        const maxDim = (targetField === 'logo' || targetField === 'authorAvatar') ? 600 : 1200;
+        base64Data = await compressImage(base64Data, maxDim, maxDim, 0.82);
+      } catch (compressErr) {
+        console.warn('Image compression failed, using original base64:', compressErr);
+      }
+
       setUploadProgress(35);
       setUploadStatusText('चित्राची वाचन प्रक्रिया यशस्वी झाली, रूपांतर करत आहे...');
 
       try {
         let uploadedUrl = '';
-        if (targetField === 'slide') {
-          try {
-            let firebaseConfig: any;
+        let firebaseConfig: any;
+        let storageSuccess = false;
+
+        // Try direct Firebase Storage first for any target field (logo, avatar, news, banner, slides, etc.)
+        try {
+          const configRes = await fetch('/api/auth/firebase-config');
+          if (configRes.ok) {
+            const configText = await configRes.text();
             try {
-              const configRes = await fetch('/api/auth/firebase-config');
-              const configText = await configRes.text();
-              if (configRes.ok) {
-                try {
-                  firebaseConfig = JSON.parse(configText);
-                } catch (e) {
-                  firebaseConfig = firebaseAppletConfig;
-                }
-              } else {
-                firebaseConfig = firebaseAppletConfig;
-              }
-            } catch (err) {
+              firebaseConfig = JSON.parse(configText);
+            } catch (e) {
               firebaseConfig = firebaseAppletConfig;
             }
-            if (!firebaseConfig || !firebaseConfig.apiKey) {
-              throw new Error('Could not retrieve Firebase configuration.');
-            }
+          } else {
+            firebaseConfig = firebaseAppletConfig;
+          }
+        } catch (err) {
+          firebaseConfig = firebaseAppletConfig;
+        }
+
+        if (firebaseConfig && firebaseConfig.apiKey) {
+          try {
+            setUploadProgress(45);
+            setUploadStatusText('थेट क्लाउड स्टोरेजवर सुरक्षित अपलोड तपासत आहे...');
             const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
             const storage = getStorage(app);
-            const storageRef = ref(storage, `brand-ads/${Date.now()}-${file.name}`);
-            const uploadSnapshot = await uploadBytes(storageRef, file);
+            const folderName = targetField === 'slide' ? 'brand-ads' : `uploads/${targetField}`;
+            const storageRef = ref(storage, `${folderName}/${Date.now()}-${file.name}`);
+            
+            // Convert compressed base64 data to blob
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+            
+            const uploadSnapshot = await uploadBytes(storageRef, blob);
             uploadedUrl = await getDownloadURL(uploadSnapshot.ref);
+            storageSuccess = true;
+            console.log('Successfully uploaded image directly to Firebase Storage:', uploadedUrl);
           } catch (storageErr: any) {
-            console.warn('Firebase Storage direct upload failed, falling back to server database upload:', storageErr);
-            const headers: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Authorization': getAuthHeader()
-            };
-            if (googleAccessToken) {
-              headers['X-Google-Access-Token'] = googleAccessToken;
-            }
-
-            const res = await fetch('/api/upload', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({
-                name: file.name,
-                data: base64Data
-              })
-            });
-
-            if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.error || 'इमेज अपलोड करण्यात एरर आला.');
-            }
-
-            const data = await res.json();
-            uploadedUrl = data.url;
+            console.warn('Firebase Storage direct upload failed or not enabled, falling back to server API:', storageErr);
           }
-        } else {
+        }
+
+        // If Firebase Storage was not used or failed, fall back to Server API
+        if (!storageSuccess) {
           setUploadProgress(55);
-          setUploadStatusText('गुगल ड्राईव्ह फोल्डर आणि ऑथेंटिकेशन पडताळत आहे...');
+          setUploadStatusText('गुगल ड्राईव्ह फोल्डर आणि सर्व्हर ऑथेंटिकेशन पडताळत आहे...');
 
           const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -859,7 +913,7 @@ export default function AdminPanel({
           }
 
           setUploadProgress(75);
-          setUploadStatusText('चित्र गुगल ड्राईव्हवर सुरक्षित अपलोड केले जात आहे...');
+          setUploadStatusText('चित्र सर्व्हर/गुगल ड्राईव्हवर सुरक्षित अपलोड केले जात आहे...');
 
           const res = await fetch('/api/upload', {
             method: 'POST',
@@ -880,10 +934,10 @@ export default function AdminPanel({
 
           const data = await res.json();
           uploadedUrl = data.url;
-
-          setUploadProgress(100);
-          setUploadStatusText('अपलोड यशस्वीरित्या पूर्ण झाले!');
         }
+
+        setUploadProgress(100);
+        setUploadStatusText('अपलोड यशस्वीरित्या पूर्ण झाले!');
 
         // Set state based on target field
         if (targetField === 'news') {

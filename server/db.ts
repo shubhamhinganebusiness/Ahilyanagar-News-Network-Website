@@ -353,14 +353,37 @@ export class PortalDatabase {
     console.log('Initializing Firebase Firestore Web SDK connection in database module...');
     
     const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
-    if (!fs.existsSync(firebaseConfigPath)) {
-      console.warn('firebase-applet-config.json not found. Forcing local file fallback.');
-      this.useFallback = true;
-      return;
+    let firebaseConfig: any;
+
+    const fallbackConfig = {
+      "projectId": "gen-lang-client-0237037046",
+      "appId": "1:1048690632738:web:61965414bcdeb5cb04c27b",
+      "apiKey": "AIzaSyCYLx7EMq1usfcBBQWP9gC8CvONHQEXa7Q",
+      "authDomain": "gen-lang-client-0237037046.firebaseapp.com",
+      "firestoreDatabaseId": "ai-studio-remixremixmajhap-e87cdb36-28bc-4662-b9cc-e404deca17c2",
+      "storageBucket": "gen-lang-client-0237037046.firebasestorage.app",
+      "messagingSenderId": "1048690632738",
+      "measurementId": "",
+      "oAuthClientId": "1048690632738-5mpjv14t8bhc8cohb31in5ib417nropi.apps.googleusercontent.com"
+    };
+
+    if (fs.existsSync(firebaseConfigPath)) {
+      try {
+        firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
+        if (firebaseConfig.projectId && firebaseConfig.projectId.startsWith('remixed-')) {
+          console.log('Detected placeholder config in firebase-applet-config.json, using fallback configuration.');
+          firebaseConfig = fallbackConfig;
+        }
+      } catch (err) {
+        console.warn('Error reading firebase-applet-config.json, using fallback:', err);
+        firebaseConfig = fallbackConfig;
+      }
+    } else {
+      console.log('firebase-applet-config.json not found, using fallback configuration.');
+      firebaseConfig = fallbackConfig;
     }
 
     try {
-      const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
       setLogLevel('silent');
       this.app = initializeApp(firebaseConfig);
       this.firestore = getFirestore(this.app, firebaseConfig.firestoreDatabaseId);
