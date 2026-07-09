@@ -315,7 +315,7 @@ export default function App() {
 
   // Fetch Site Customization settings on mount with localStorage caching
   const fetchSettings = () => {
-    fetch('/api/settings')
+    fetch(`/api/settings?_t=${Date.now()}`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();

@@ -892,25 +892,20 @@ export default function AdminPanel({
         } else if (targetField === 'logo') {
           setCustLogoUrl(uploadedUrl);
           addToast('प्रवाहित लोगो यशस्वीरित्या डिव्हाइसमधून अपलोड केला गेला!', 'success');
-          await autoSaveBranding({ channelLogoUrl: uploadedUrl });
-          addActivityLog('डिव्हाइसमधून मुख्य लोगो चित्र बदलले.');
+          await addActivityLog('डिव्हाइसमधून मुख्य लोगो चित्र बदलले.', { channelLogoUrl: uploadedUrl });
         } else if (targetField === 'banner') {
           setAdBannerImageUrl(uploadedUrl);
           addToast('जाहिरात बॅनर यशस्वीरित्या डिव्हाइसमधून अपलोड केला गेला!', 'success');
-          await autoSaveBranding({ adBannerImageUrl: uploadedUrl });
-          addActivityLog('होमपेजसाठी नवीन जाहिरात बॅनर चित्र अपलोड केले.');
+          await addActivityLog('होमपेजसाठी नवीन जाहिरात बॅनर चित्र अपलोड केले.', { adBannerImageUrl: uploadedUrl });
         } else if (targetField === 'slide') {
           if (slideIndex !== undefined) {
-            setBrandAdsSlides((prev) => {
-              const updated = [...prev];
-              if (updated[slideIndex]) {
-                updated[slideIndex] = { ...updated[slideIndex], imageUrl: uploadedUrl };
-              }
-              autoSaveBranding({ brandAdsSlides: updated });
-              return updated;
-            });
+            const updated = [...brandAdsSlides];
+            if (updated[slideIndex]) {
+              updated[slideIndex] = { ...updated[slideIndex], imageUrl: uploadedUrl };
+            }
+            setBrandAdsSlides(updated);
             addToast('या जाहिरात स्लाईडचे चित्र यशस्वीरित्या बदलले गेले!', 'success');
-            addActivityLog(`विशेष जाहिरात स्लाईड क्र. ${slideIndex + 1} चे चित्र बदलले.`);
+            await addActivityLog(`विशेष जाहिरात स्लाईड क्र. ${slideIndex + 1} चे चित्र बदलले.`, { brandAdsSlides: updated });
           } else {
             setNewSlideImgUrl(uploadedUrl);
             addToast('जाहिरात स्लाईड यशस्वीरित्या डिव्हाइसमधून अपलोड केली गेली! जोडण्यासाठी "जोडा" बटन दाबा.', 'success');
@@ -918,23 +913,19 @@ export default function AdminPanel({
         } else if (targetField === 'detailAd1') {
           setDetailAd1ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. १ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
-          await autoSaveBranding({ detailAd1ImageUrl: uploadedUrl });
-          addActivityLog('बातमी वाचन जाहिरात क्र. १ चे चित्र अद्ययावत केले.');
+          await addActivityLog('बातमी वाचन जाहिरात क्र. १ चे चित्र अद्ययावत केले.', { detailAd1ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd2') {
           setDetailAd2ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. २ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
-          await autoSaveBranding({ detailAd2ImageUrl: uploadedUrl });
-          addActivityLog('बातमी वाचन जाहिरात क्र. २ चे चित्र अद्ययावत केले.');
+          await addActivityLog('बातमी वाचन जाहिरात क्र. २ चे चित्र अद्ययावत केले.', { detailAd2ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd3') {
           setDetailAd3ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. ३ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
-          await autoSaveBranding({ detailAd3ImageUrl: uploadedUrl });
-          addActivityLog('बातमी वाचन जाहिरात क्र. ३ चे चित्र अद्ययावत केले.');
+          await addActivityLog('बातमी वाचन जाहिरात क्र. ३ चे चित्र अद्ययावत केले.', { detailAd3ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd4') {
           setDetailAd4ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. ४ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
-          await autoSaveBranding({ detailAd4ImageUrl: uploadedUrl });
-          addActivityLog('बातमी वाचन जाहिरात क्र. ४ चे चित्र अद्ययावत केले.');
+          await addActivityLog('बातमी वाचन जाहिरात क्र. ४ चे चित्र अद्ययावत केले.', { detailAd4ImageUrl: uploadedUrl });
         } else if (targetField === 'authorAvatar') {
           setProfileAvatarUrl(uploadedUrl);
           addToast('लेखकाचे प्रोफाईल चित्र यशस्वीरित्या अपलोड केले गेले!', 'success');
@@ -1581,7 +1572,7 @@ export default function AdminPanel({
   };
 
   // Log a recent superadmin activity and persist it
-  const addActivityLog = async (actionText: string) => {
+  const addActivityLog = async (actionText: string, otherFields?: any) => {
     const newLog = {
       id: `act-${Date.now()}`,
       action: actionText,
@@ -1591,7 +1582,10 @@ export default function AdminPanel({
     
     setRecentActivities((prev) => {
       const updated = [newLog, ...prev].slice(0, 50); // limit to last 50 entries
-      autoSaveBranding({ recentActivities: updated });
+      autoSaveBranding({ 
+        ...otherFields,
+        recentActivities: updated 
+      });
       return updated;
     });
   };
