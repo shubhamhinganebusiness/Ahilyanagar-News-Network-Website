@@ -266,46 +266,80 @@ export default function App() {
   // Function to load/refresh news list from real Express API
   const fetchNews = () => {
     setIsLoading(true);
-    let url = '/api/news';
     
-    // Build parameters if they fit backend endpoints
-    const params = new URLSearchParams();
-    if (currentCategory !== 'सर्व') {
-      params.append('category', currentCategory);
-    }
-    if (searchQuery.trim()) {
-      params.append('search', searchQuery.trim());
-    }
-    if (isAdminMode) {
-      params.append('includeHidden', 'true');
-    }
-    
-    const queryString = params.toString();
-    if (queryString) {
-      url += `?${queryString}`;
-    }
+    const tryDirectFirestore = () => {
+      import('./utils/firebaseClient')
+        .then(({ getDirectNews, setClientOnlyMode }) => {
+          setClientOnlyMode(true);
+          const authorUser = isAdminMode ? (sessionStorage.getItem('mp_auth_username') || undefined) : undefined;
+          return getDirectNews(
+            currentCategory === 'सर्व' ? undefined : currentCategory,
+            searchQuery.trim() ? searchQuery : undefined,
+            isAdminMode,
+            authorUser
+          );
+        })
+        .then((data) => {
+          setNewsList(data);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error('Direct Firestore fetch news failed:', err);
+          setIsLoading(false);
+          addToast('बातम्या लोड करण्यात अडचण आली.', 'error');
+        });
+    };
 
-    const headers: Record<string, string> = {};
-    if (isAdminMode) {
-      headers['Authorization'] = sessionStorage.getItem('mp_auth_token') || 'Basic YWRtaW46bWFyYXRoaUAxMjM=';
-    }
+    import('./utils/firebaseClient').then(({ isClientOnlyMode, setClientOnlyMode }) => {
+      if (isClientOnlyMode()) {
+        tryDirectFirestore();
+        return;
+      }
 
-    fetch(url, { headers })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('बातम्या लोड करण्यात अडचण आली.');
-        }
-        return res.json();
-      })
-      .then((data: News[]) => {
-        setNewsList(data);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setIsLoading(false);
-        addToast('सर्व्हरकडून बातम्या मिळवण्यात अयशस्वी. कृपया नेटवर्क तपासा.', 'error');
-      });
+      let url = '/api/news';
+      
+      // Build parameters if they fit backend endpoints
+      const params = new URLSearchParams();
+      if (currentCategory !== 'सर्व') {
+        params.append('category', currentCategory);
+      }
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+      if (isAdminMode) {
+        params.append('includeHidden', 'true');
+      }
+      
+      const queryString = params.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+
+      const headers: Record<string, string> = {};
+      if (isAdminMode) {
+        headers['Authorization'] = sessionStorage.getItem('mp_auth_token') || 'Basic YWRtaW46bWFyYXRoaUAxMjM=';
+      }
+
+      fetch(url, { headers })
+        .then((res) => {
+          if (!res.ok) {
+            if (res.status === 404) {
+              setClientOnlyMode(true);
+              throw new Error('404');
+            }
+            throw new Error('बातम्या लोड करण्यात अडचण आली.');
+          }
+          return res.json();
+        })
+        .then((data: News[]) => {
+          setNewsList(data);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.warn('API Fetch News failed, falling back to client-side Firestore:', err);
+          tryDirectFirestore();
+        });
+    });
   };
 
   // Trigger load on category, search, admin mode or initial load
@@ -315,30 +349,68 @@ export default function App() {
 
   // Fetch Site Customization settings on mount with localStorage caching
   const fetchSettings = () => {
-    fetch(`/api/settings?_t=${Date.now()}`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        if (data && typeof data === 'object') {
-          setSiteSettings((prev) => {
-            const merged = { ...prev, ...data };
-            try {
-              localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
-            } catch (e) {
-              console.error(e);
-            }
-            return merged;
-          });
-          if (data.googleAccessToken) {
-            setGoogleAccessToken(data.googleAccessToken);
+    const tryDirectSettings = () => {
+      import('./utils/firebaseClient')
+        .then(({ getDirectSettings, setClientOnlyMode }) => {
+          setClientOnlyMode(true);
+          return getDirectSettings();
+        })
+        .then((data) => {
+          if (data && typeof data === 'object') {
+            setSiteSettings((prev) => {
+              const merged = { ...prev, ...data };
+              try {
+                localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
+              } catch (e) {
+                console.error(e);
+              }
+              return merged;
+            });
           }
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch site settings:', err);
-      });
+        })
+        .catch((err) => {
+          console.error('Direct Firestore fetch settings failed:', err);
+        });
+    };
+
+    import('./utils/firebaseClient').then(({ isClientOnlyMode, setClientOnlyMode }) => {
+      if (isClientOnlyMode()) {
+        tryDirectSettings();
+        return;
+      }
+
+      fetch(`/api/settings?_t=${Date.now()}`)
+        .then((res) => {
+          if (!res.ok) {
+            if (res.status === 404) {
+              setClientOnlyMode(true);
+              throw new Error('404');
+            }
+            throw new Error();
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (data && typeof data === 'object') {
+            setSiteSettings((prev) => {
+              const merged = { ...prev, ...data };
+              try {
+                localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
+              } catch (e) {
+                console.error(e);
+              }
+              return merged;
+            });
+            if (data.googleAccessToken) {
+              setGoogleAccessToken(data.googleAccessToken);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('API Fetch Settings failed, falling back to client-side Firestore:', err);
+          tryDirectSettings();
+        });
+    });
   };
 
   useEffect(() => {

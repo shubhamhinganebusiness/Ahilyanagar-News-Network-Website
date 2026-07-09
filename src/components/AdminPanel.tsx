@@ -1503,6 +1503,68 @@ export default function AdminPanel({
     refreshNews();
   };
 
+  const saveSettingsHelper = async (payload: any) => {
+    let isSaved = false;
+    let isClientOnly = false;
+    try {
+      const { isClientOnlyMode, saveDirectSettings, setClientOnlyMode } = await import('../utils/firebaseClient');
+      if (isClientOnlyMode()) {
+        isClientOnly = true;
+      }
+
+      if (!isClientOnly) {
+        try {
+          const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            isSaved = true;
+          } else if (res.status === 404) {
+            setClientOnlyMode(true);
+            isClientOnly = true;
+          } else {
+            let errorMsg = '';
+            try {
+              const errData = await res.json();
+              errorMsg = errData.error;
+            } catch (jsonErr) {
+              if (res.status === 413) {
+                errorMsg = 'चित्रांचा डेटा किंवा फाईलचा आकार खूप मोठा आहे (HTTP 413 Payload Too Large). कृपया जाहिरातीचे किंवा लोगोचे चित्र अधिक कॉम्प्रेस करून लहान आकारात अपलोड करा.';
+              } else if (res.status === 403) {
+                errorMsg = 'अधिकार उपलब्ध नाहीत (HTTP 403): साइट रचना बदलण्याचा अधिकार केवळ मुख्य व्यवस्थापकाला (Super Admin) आहे.';
+              } else {
+                errorMsg = `सर्व्हर एरर (HTTP ${res.status}): डेटा जतन करताना तांत्रिक चूक झाली.`;
+              }
+            }
+            throw new Error(errorMsg || `साइट रचना जतन करताना एरर आला (HTTP ${res.status}).`);
+          }
+        } catch (apiErr: any) {
+          if (isClientOnly) {
+            // will continue to fallback
+          } else {
+            throw apiErr;
+          }
+        }
+      }
+
+      if (isClientOnly) {
+        console.log('Using direct client-side Firestore save fallback for settings...');
+        await saveDirectSettings(payload);
+        isSaved = true;
+      }
+    } catch (err: any) {
+      console.error('Error in saveSettingsHelper:', err);
+      throw err;
+    }
+    return isSaved;
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingBranding(true);
@@ -1603,33 +1665,7 @@ export default function AdminPanel({
       localStorage.setItem('majhapatra_topBarTickerText', custTopBarTickerText.trim());
       localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(payload));
 
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': getAuthHeader()
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        let errorMsg = '';
-        try {
-          const errData = await res.json();
-          errorMsg = errData.error;
-        } catch (jsonErr) {
-          if (res.status === 413) {
-            errorMsg = 'चित्रांचा डेटा किंवा फाईलचा आकार खूप मोठा आहे (HTTP 413 Payload Too Large). कृपया जाहिरातीचे किंवा लोगोचे चित्र अधिक कॉम्प्रेस करून लहान आकारात अपलोड करा.';
-          } else if (res.status === 403) {
-            errorMsg = 'अधिकार उपलब्ध नाहीत (HTTP 403): साइट रचना बदलण्याचा अधिकार केवळ मुख्य व्यवस्थापकाला (Super Admin) आहे.';
-          } else if (res.status === 404) {
-            errorMsg = 'सर्व्हरवरील एंडपॉइंट सापडला नाही (HTTP 404). कृपया डेव्हलपमेंट सर्व्हर रीस्टार्ट करा.';
-          } else {
-            errorMsg = `सर्व्हर एरर (HTTP ${res.status}): डेटा जतन करताना तांत्रिक चूक झाली.`;
-          }
-        }
-        throw new Error(errorMsg || `साइट रचना जतन करताना एरर आला (HTTP ${res.status}).`);
-      }
+      await saveSettingsHelper(payload);
 
       const successMsg = 'साइट रचना आणि ब्रँडिंग यशस्वीरित्या जतन केले गेले!';
       addToast(successMsg, 'success');
@@ -1713,14 +1749,7 @@ export default function AdminPanel({
       // Back up to localStorage
       localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(payload));
 
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': getAuthHeader()
-        },
-        body: JSON.stringify(payload)
-      });
+      await saveSettingsHelper(payload);
 
       onSaveSettings(); // notify parent
     } catch (err) {
@@ -1781,18 +1810,57 @@ export default function AdminPanel({
       const url = editingArticleId ? `/api/news/${editingArticleId}` : '/api/news';
       const method = editingArticleId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': getAuthHeader()
-        },
-        body: JSON.stringify(payload)
-      });
+      let isSaved = false;
+      let isClientOnly = false;
+      const { isClientOnlyMode, createDirectNews, updateDirectNews, setClientOnlyMode } = await import('../utils/firebaseClient');
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || (editingArticleId ? 'बातमी सुधारित करताना सर्व्हर त्रुटी आली.' : 'बातमी प्रकाशित करताना सर्व्हर त्रुटी आली.'));
+      if (isClientOnlyMode()) {
+        isClientOnly = true;
+      }
+
+      if (!isClientOnly) {
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            isSaved = true;
+          } else if (res.status === 404) {
+            setClientOnlyMode(true);
+            isClientOnly = true;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || (editingArticleId ? 'बातमी सुधारित करताना सर्व्हर त्रुटी आली.' : 'बातमी प्रकाशित करताना सर्व्हर त्रुटी आली.'));
+          }
+        } catch (apiErr: any) {
+          if (isClientOnly) {
+            // continue to fallback
+          } else {
+            throw apiErr;
+          }
+        }
+      }
+
+      if (isClientOnly) {
+        console.log('Using direct client-side Firestore save fallback for news...');
+        const payloadToSave = {
+          ...payload,
+          authorUsername: userRole === 'author' ? userUsername : 'admin',
+          slug: payload.title.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]+/g, '-').replace(/(^-|-$)/g, ''),
+          publishDate: payload.scheduledPublishDate || new Date().toISOString()
+        } as any;
+        if (editingArticleId) {
+          await updateDirectNews(editingArticleId, payloadToSave);
+        } else {
+          await createDirectNews(payloadToSave);
+        }
+        isSaved = true;
       }
 
       const successMsg = editingArticleId 
@@ -1833,24 +1901,52 @@ export default function AdminPanel({
       onConfirm: async () => {
         setDeletingNewsId(id);
         try {
-          const res = await fetch(`/api/news/${id}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': getAuthHeader()
-            }
-          });
+          let isDeleted = false;
+          let isClientOnly = false;
+          const { isClientOnlyMode, deleteDirectNews, setClientOnlyMode } = await import('../utils/firebaseClient');
+          if (isClientOnlyMode()) {
+            isClientOnly = true;
+          }
 
-          if (!res.ok) {
-            let errorMsg = `त्रुटी आली: सर्व्हर कडून नकारात्मक प्रतिसाद प्राप्त झाला (${res.status} ${res.statusText})`;
+          if (!isClientOnly) {
             try {
-              const errorJson = await res.json();
-              if (errorJson && errorJson.error) {
-                errorMsg = `त्रुटी: ${errorJson.error}`;
+              const res = await fetch(`/api/news/${id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': getAuthHeader()
+                }
+              });
+
+              if (res.ok) {
+                isDeleted = true;
+              } else if (res.status === 404) {
+                setClientOnlyMode(true);
+                isClientOnly = true;
+              } else {
+                let errorMsg = `त्रुटी आली: सर्व्हर कडून नकारात्मक प्रतिसाद प्राप्त झाला (${res.status} ${res.statusText})`;
+                try {
+                  const errorJson = await res.json();
+                  if (errorJson && errorJson.error) {
+                    errorMsg = `त्रुटी: ${errorJson.error}`;
+                  }
+                } catch (jsonErr) {
+                  // Ignore JSON parse error, use fallback
+                }
+                throw new Error(errorMsg);
               }
-            } catch (jsonErr) {
-              // Ignore JSON parse error, use fallback
+            } catch (apiErr: any) {
+              if (isClientOnly) {
+                // continue to fallback
+              } else {
+                throw apiErr;
+              }
             }
-            throw new Error(errorMsg);
+          }
+
+          if (isClientOnly) {
+            console.log('Using direct client-side Firestore delete fallback for news...');
+            await deleteDirectNews(id);
+            isDeleted = true;
           }
 
           addToast('बातमी यशस्वीरित्या डिलीट केली.', 'success');
@@ -1870,18 +1966,46 @@ export default function AdminPanel({
     const actionText = newHidden ? 'अदृश्य (Hide)' : 'दर्शवा (Unhide)';
     
     try {
-      const res = await fetch(`/api/news/${id}/toggle-visibility`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': getAuthHeader()
-        },
-        body: JSON.stringify({ hidden: newHidden })
-      });
+      let isToggled = false;
+      let isClientOnly = false;
+      const { isClientOnlyMode, updateDirectNews, setClientOnlyMode } = await import('../utils/firebaseClient');
+      if (isClientOnlyMode()) {
+        isClientOnly = true;
+      }
 
-      if (!res.ok) {
-        const errorJson = await res.json().catch(() => ({}));
-        throw new Error(errorJson.error || `बातमी ${actionText} करण्यात अपयश आले.`);
+      if (!isClientOnly) {
+        try {
+          const res = await fetch(`/api/news/${id}/toggle-visibility`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({ hidden: newHidden })
+          });
+
+          if (res.ok) {
+            isToggled = true;
+          } else if (res.status === 404) {
+            setClientOnlyMode(true);
+            isClientOnly = true;
+          } else {
+            const errorJson = await res.json().catch(() => ({}));
+            throw new Error(errorJson.error || `बातमी ${actionText} करण्यात अपयश आले.`);
+          }
+        } catch (apiErr: any) {
+          if (isClientOnly) {
+            // continue to fallback
+          } else {
+            throw apiErr;
+          }
+        }
+      }
+
+      if (isClientOnly) {
+        console.log('Using direct client-side Firestore toggle-visibility fallback...');
+        await updateDirectNews(id, { hidden: newHidden });
+        isToggled = true;
       }
 
       addToast(`बातमी यशस्वीरित्या ${newHidden ? 'अदृश्य केली गेली' : 'दर्शवली गेली'}!`, 'success');
@@ -5020,15 +5144,7 @@ export default function AdminPanel({
                         authorProfiles: updatedList,
                       };
 
-                      const res = await fetch('/api/settings', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': getAuthHeader()
-                        },
-                        body: JSON.stringify(payload)
-                      });
-                      if (!res.ok) throw new Error();
+                      await saveSettingsHelper(payload);
                       onSaveSettings();
                     } catch (err) {
                       console.error('Failed to sync settings with server:', err);
@@ -5333,15 +5449,7 @@ export default function AdminPanel({
                                     authorProfiles: updatedList,
                                   };
 
-                                  const res = await fetch('/api/settings', {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      'Authorization': getAuthHeader()
-                                    },
-                                    body: JSON.stringify(payload)
-                                  });
-                                  if (!res.ok) throw new Error();
+                                  await saveSettingsHelper(payload);
                                   onSaveSettings();
                                 } catch (err) {
                                   console.error('Failed to sync settings with server:', err);
