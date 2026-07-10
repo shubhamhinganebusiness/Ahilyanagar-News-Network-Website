@@ -456,6 +456,71 @@ Follow these rules strictly:
     }
   });
 
+  // Dynamic XML Sitemap for SEO search indexing
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const host = req.get('host') || 'ahilyanagarnewsnetwork.in';
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const baseUrl = `${protocol}://${host}`;
+
+      // Get all non-hidden articles to index
+      const articles = await db.getAll(undefined, undefined, false);
+      
+      const categories = Array.from(new Set(articles.map(a => a.category).filter(Boolean)));
+
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+      // 1. Homepage
+      xml += '  <url>\n';
+      xml += `    <loc>${baseUrl}/</loc>\n`;
+      xml += '    <changefreq>daily</changefreq>\n';
+      xml += '    <priority>1.0</priority>\n';
+      xml += '  </url>\n';
+
+      // 2. Category Pages
+      for (const cat of categories) {
+        xml += '  <url>\n';
+        xml += `    <loc>${baseUrl}/?category=${encodeURIComponent(cat)}</loc>\n`;
+        xml += '    <changefreq>daily</changefreq>\n';
+        xml += '    <priority>0.8</priority>\n';
+        xml += '  </url>\n';
+      }
+
+      // 3. Dynamic Article Detail Pages
+      for (const article of articles) {
+        const dateStr = article.publishDate || new Date().toISOString();
+        let formattedDate = dateStr;
+        
+        // Ensure valid ISO date for sitemap
+        try {
+          if (!isNaN(Date.parse(dateStr))) {
+            formattedDate = new Date(dateStr).toISOString().split('T')[0];
+          } else {
+            formattedDate = new Date().toISOString().split('T')[0];
+          }
+        } catch {
+          formattedDate = new Date().toISOString().split('T')[0];
+        }
+
+        xml += '  <url>\n';
+        xml += `    <loc>${baseUrl}/?article=${article._id}</loc>\n`;
+        xml += `    <lastmod>${formattedDate}</lastmod>\n`;
+        xml += '    <changefreq>weekly</changefreq>\n';
+        xml += '    <priority>0.7</priority>\n';
+        xml += '  </url>\n';
+      }
+
+      xml += '</urlset>\n';
+
+      res.header('Content-Type', 'application/xml');
+      return res.status(200).send(xml);
+    } catch (err) {
+      console.error('Sitemap generation error:', err);
+      return res.status(500).send('Error generating sitemap');
+    }
+  });
+
   // 1. GET /api/news -> get all news (latest first) or filter by category/search
   app.get('/api/news', async (req, res) => {
     try {
@@ -1746,11 +1811,69 @@ Follow these rules strictly:
         }
       }
 
+      // Generate structured SEO metadata JSON-LD schemas
+      let structuredSchema = '';
+      try {
+        let schemaObject: any = {};
+        if (articleId) {
+          const article = await db.getById(articleId);
+          if (article) {
+            schemaObject = {
+              "@context": "https://schema.org",
+              "@type": "NewsArticle",
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": absoluteUrl
+              },
+              "headline": article.title,
+              "image": [imageUrl],
+              "datePublished": article.publishDate || new Date().toISOString(),
+              "dateModified": article.publishDate || new Date().toISOString(),
+              "author": {
+                "@type": "Person",
+                "name": article.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी",
+                "jobTitle": "Reporter"
+              },
+              "publisher": {
+                "@type": "NewsMediaOrganization",
+                "name": defaultTitle,
+                "url": `${protocol}://${host}`,
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(settings.channelLogoUrl || 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link')}`
+                }
+              },
+              "description": article.description || description
+            };
+          }
+        } else {
+          schemaObject = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": defaultTitle,
+            "alternateName": "Ahilyanagar News Network",
+            "url": `${protocol}://${host}`,
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": `${protocol}://${host}/?search={search_term_string}`
+              },
+              "query-input": "required name=search_term_string"
+            }
+          };
+        }
+        structuredSchema = `\n    <script type="application/ld+json">\n    ${JSON.stringify(schemaObject, null, 2)}\n    </script>`;
+      } catch (err) {
+        console.error('Error generating JSON-LD Schema:', err);
+      }
+
       // Build target open graph and meta tag strings
       const metaTags = `
     <!-- HTML Meta Tags -->
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}" />
+    <link rel="canonical" href="${escapeHtml(absoluteUrl)}" />
 
     <!-- Google / Search Engine Tags -->
     <meta itemprop="name" content="${escapeHtml(title)}" />
@@ -1774,6 +1897,7 @@ Follow these rules strictly:
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
+    ${structuredSchema}
       `;
 
       // Remove any existing Open Graph, Twitter, description, and title tags to prevent duplicates

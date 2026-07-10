@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/analytics
+Disallow: /api/logs
+
+Sitemap: https://ahilyanagarnewsnetwork.in/sitemap.xml
+Sitemap: https://ais-pre-viapgfjsa4jckjleopll4v-113676815905.asia-southeast1.run.app/sitemap.xml
