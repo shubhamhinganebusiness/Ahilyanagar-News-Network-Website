@@ -1,6 +1,6 @@
 import React from 'react';
 import { Megaphone, ExternalLink } from 'lucide-react';
-import { SiteCustomization } from '../types';
+import { SiteCustomization, resolveDriveUrl } from '../types';
 
 interface AdBannerProps {
   settings: SiteCustomization;
@@ -49,7 +49,7 @@ export default function AdBanner({ settings }: AdBannerProps) {
             {settings.adBannerImageUrl && (
               <div className="w-full sm:w-[115px] aspect-[1290/720] rounded-lg overflow-hidden bg-black/20 border border-white/10 shrink-0">
                 <img 
-                  src={settings.adBannerImageUrl} 
+                  src={resolveDriveUrl(settings.adBannerImageUrl)} 
                   alt="Advertise"
                   className="w-full h-full max-w-[1290px] max-h-[720px] object-cover aspect-[1290/720]"
                   onError={(e) => {

@@ -4109,7 +4109,7 @@ export default function AdminPanel({
                       <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-center z-10">
                         {adBannerImageUrl && (
                           <img 
-                            src={adBannerImageUrl} 
+                            src={resolveDriveUrl(adBannerImageUrl)} 
                             alt="preview" 
                             className="w-[72px] h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover rounded bg-black/15 border border-white/10 hidden sm:block"
                             onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
@@ -4666,7 +4666,7 @@ export default function AdminPanel({
                           <div key={slide.id || idx} className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col space-y-3 relative group shadow-xs">
                             <div className="flex space-x-3 items-start">
                               <img
-                                src={slide.imageUrl}
+                                src={resolveDriveUrl(slide.imageUrl)}
                                 alt={slide.title || 'Slide'}
                                 className="w-20 h-14 object-cover rounded-lg bg-slate-100 border border-slate-200 shrink-0"
                                 onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}

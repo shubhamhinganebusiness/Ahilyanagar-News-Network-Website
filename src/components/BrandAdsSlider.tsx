@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Play, Pause, ExternalLink, Megaphone } from 'lucide-react';
-import { SiteCustomization } from '../types';
+import { SiteCustomization, resolveDriveUrl } from '../types';
 
 interface BrandAdsSliderProps {
   settings: SiteCustomization;
@@ -122,7 +122,7 @@ export default function BrandAdsSlider({ settings }: BrandAdsSliderProps) {
             className="block w-full h-full relative"
           >
             <img
-              src={currentSlide.imageUrl}
+              src={resolveDriveUrl(currentSlide.imageUrl)}
               alt={currentSlide.title || 'Brand Advertisement'}
               className="w-full h-full max-w-[1290px] max-h-[720px] aspect-[1290/720] object-cover transition-opacity duration-500 ease-in-out"
               onError={(e) => {
