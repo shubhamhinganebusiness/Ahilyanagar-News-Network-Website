@@ -15,6 +15,7 @@ import AdBanner from './components/AdBanner';
 import LiveTvSection from './components/LiveTvSection';
 import AuthTroubleshooterModal from './components/AuthTroubleshooterModal';
 import { firebaseAppletConfig } from './firebase-config-fallback';
+import { useMetadata } from './hooks/useMetadata';
 
 export default function App() {
   const [newsList, setNewsList] = useState<News[]>([]);
@@ -255,6 +256,9 @@ export default function App() {
     return result;
   };
   const [siteSettings, setSiteSettings] = useState<SiteCustomization>(getInitialSettings);
+
+  const activeArticle = selectedArticleId ? newsList.find(n => n.id === selectedArticleId) || null : null;
+  useMetadata(activeArticle, siteSettings);
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString() + Math.random().toString();

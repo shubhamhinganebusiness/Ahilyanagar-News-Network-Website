@@ -226,48 +226,6 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     return () => clearInterval(interval);
   }, [article]);
 
-  // Dynamically update SEO Meta Tags and Document Title when article loads
-  useEffect(() => {
-    if (!article) return;
-
-    const prevTitle = document.title;
-    document.title = `${article.title} - ${channelName || 'माझापत्र'}`;
-
-    const updateMetaTag = (attributeName: string, attributeValue: string, contentValue: string) => {
-      let element = document.querySelector(`meta[${attributeName}="${attributeValue}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attributeName, attributeValue);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', contentValue || '');
-    };
-
-    const cleanDesc = article.description || article.content.replace(/<[^>]*>/g, '').slice(0, 150);
-    updateMetaTag('name', 'description', cleanDesc);
-
-    const tags = deriveTags(article);
-    const metaKeywords = tags.join(', ') + ', माझापत्र समाचार, महाराष्ट्र न्यूज, मराठी भाषा बातम्या';
-    updateMetaTag('name', 'keywords', metaKeywords);
-
-    // Open Graph dynamic tags
-    updateMetaTag('property', 'og:title', article.title);
-    updateMetaTag('property', 'og:description', cleanDesc);
-    updateMetaTag('property', 'og:image', resolveDriveUrl(article.imageURL));
-    updateMetaTag('property', 'og:url', window.location.href);
-    updateMetaTag('property', 'og:type', 'article');
-
-    // Twitter card dynamic tags
-    updateMetaTag('name', 'twitter:card', 'summary_large_image');
-    updateMetaTag('name', 'twitter:title', article.title);
-    updateMetaTag('name', 'twitter:description', cleanDesc);
-    updateMetaTag('name', 'twitter:image', resolveDriveUrl(article.imageURL));
-
-    return () => {
-      document.title = prevTitle;
-    };
-  }, [article, channelName]);
-
   // Sync Read Later on mount/change
   useEffect(() => {
     try {
@@ -302,6 +260,21 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       synthRef.current = window.speechSynthesis;
+      if (typeof window.speechSynthesis.addEventListener === 'function') {
+        const handleVoicesChanged = () => {
+          if (synthRef.current) {
+            console.log('Voices updated asynchronously:', synthRef.current.getVoices().length);
+          }
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+        window.speechSynthesis.getVoices();
+        return () => {
+          if (window.speechSynthesis) {
+            window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+            window.speechSynthesis.cancel();
+          }
+        };
+      }
     }
     return () => {
       if (synthRef.current) {
@@ -315,17 +288,28 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     if (isSpeaking && utteranceRef.current && synthRef.current) {
       const currentText = utteranceRef.current.text;
       synthRef.current.cancel();
-      const newUtterance = new SpeechSynthesisUtterance(currentText);
-      newUtterance.lang = 'mr-IN';
-      newUtterance.rate = speakRate;
-      const voices = synthRef.current.getVoices();
-      const marathiVoice = voices.find(v => v.lang.includes('mr-IN') || v.lang.includes('mr_IN'));
-      if (marathiVoice) {
-        newUtterance.voice = marathiVoice;
-      } else {
-        const hiVoice = voices.find(v => v.lang.includes('hi-IN') || v.lang.includes('hi_IN'));
-        if (hiVoice) newUtterance.voice = hiVoice;
+      if (synthRef.current.paused) {
+        synthRef.current.resume();
       }
+      const newUtterance = new SpeechSynthesisUtterance(currentText);
+      newUtterance.rate = speakRate;
+      
+      const voices = synthRef.current.getVoices();
+      let selectedVoice = voices.find(v => v.lang.toLowerCase() === 'mr-in' || v.lang.toLowerCase() === 'mr_in');
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase() === 'hi_in');
+      }
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.toLowerCase().includes('in'));
+      }
+
+      if (selectedVoice) {
+        newUtterance.voice = selectedVoice;
+        newUtterance.lang = selectedVoice.lang;
+      } else {
+        newUtterance.lang = 'mr-IN';
+      }
+
       newUtterance.onend = () => {
         setIsSpeaking(false);
         setIsSpeechPaused(false);
@@ -335,7 +319,12 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
         setIsSpeechPaused(false);
       };
       utteranceRef.current = newUtterance;
-      synthRef.current.speak(newUtterance);
+      
+      setTimeout(() => {
+        if (synthRef.current) {
+          synthRef.current.speak(newUtterance);
+        }
+      }, 100);
     }
   }, [speakRate]);
 
@@ -356,60 +345,97 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   }, [articleId]);
 
   const handleStartSpeech = () => {
-    if (!article || !synthRef.current) return;
-    synthRef.current.cancel(); // kill existing feeds
-
-    const cleanText = article.title + ". " + article.description + ". " + article.content.replace(/<[^>]*>/g, '');
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'mr-IN';
-    utterance.rate = speakRate;
-
-    const voices = synthRef.current.getVoices();
-    const marathiVoice = voices.find(v => v.lang.includes('mr-IN') || v.lang.includes('mr_IN'));
-    if (marathiVoice) {
-      utterance.voice = marathiVoice;
-    } else {
-      const hindiVoice = voices.find(v => v.lang.includes('hi-IN') || v.lang.includes('hi_IN'));
-      if (hindiVoice) {
-        utterance.voice = hindiVoice;
-      }
+    if (!article || !synthRef.current) {
+      addToast('तुमच्या ब्राउझरमध्ये ऑडिओ वाचन सेवा उपलब्ध नाही.', 'error');
+      return;
     }
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-    };
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-    };
+    try {
+      synthRef.current.cancel();
+      if (synthRef.current.paused) {
+        synthRef.current.resume();
+      }
 
-    utteranceRef.current = utterance;
-    setIsSpeaking(true);
-    setIsSpeechPaused(false);
-    synthRef.current.speak(utterance);
-    addToast('मराठी वाचन सेवा सुरू झाली आहे 🎙️', 'success');
+      const cleanText = article.title + ". " + article.description + ". " + article.content.replace(/<[^>]*>/g, '');
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = speakRate;
+
+      const voices = synthRef.current.getVoices();
+      let selectedVoice = voices.find(v => v.lang.toLowerCase() === 'mr-in' || v.lang.toLowerCase() === 'mr_in');
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase() === 'hi_in');
+      }
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.toLowerCase().includes('in'));
+      }
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+      } else {
+        utterance.lang = 'mr-IN';
+        console.log('Using default browser voice for mr-IN');
+      }
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsSpeechPaused(false);
+      };
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        setIsSpeaking(false);
+        setIsSpeechPaused(false);
+        if (e.error !== 'interrupted') {
+          addToast('ऑडिओ वाचनात अडचण आली.', 'error');
+        }
+      };
+
+      utteranceRef.current = utterance;
+      setIsSpeaking(true);
+      setIsSpeechPaused(false);
+
+      setTimeout(() => {
+        if (synthRef.current) {
+          synthRef.current.speak(utterance);
+          addToast('मराठी वाचन सेवा सुरू झाली आहे 🎙️', 'success');
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Failed to start speech synthesis:', err);
+      setIsSpeaking(false);
+      setIsSpeechPaused(false);
+      addToast('ऑडिओ प्लेयर सुरू करता आला नाही.', 'error');
+    }
   };
 
   const handlePauseResumeSpeech = () => {
     if (!synthRef.current) return;
-    if (isSpeechPaused) {
-      synthRef.current.resume();
-      setIsSpeechPaused(false);
-      addToast('वाचन पुन्हा सुरू केले.', 'info');
-    } else {
-      synthRef.current.pause();
-      setIsSpeechPaused(true);
-      addToast('वाचन थांबवले.', 'info');
+    try {
+      if (isSpeechPaused) {
+        synthRef.current.resume();
+        setIsSpeechPaused(false);
+        addToast('वाचन पुन्हा सुरू केले.', 'info');
+      } else {
+        synthRef.current.pause();
+        setIsSpeechPaused(true);
+        addToast('वाचन थांबवले.', 'info');
+      }
+    } catch (err) {
+      console.error('Pause/Resume speech error:', err);
     }
   };
 
   const handleStopSpeech = () => {
     if (!synthRef.current) return;
-    synthRef.current.cancel();
-    setIsSpeaking(false);
-    setIsSpeechPaused(false);
-    addToast('मराठी वाचन सेवा बंद करण्यात आली.', 'info');
+    try {
+      synthRef.current.cancel();
+      setIsSpeaking(false);
+      setIsSpeechPaused(false);
+      addToast('मराठी वाचन सेवा बंद करण्यात आली.', 'info');
+    } catch (err) {
+      console.error('Stop speech error:', err);
+    }
   };
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -514,9 +540,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
 
   const shareOnWhatsApp = () => {
     if (!article) return;
-    const resolvedImg = resolveDriveUrl(article.imageURL);
     const cleanDesc = article.description || article.content.replace(/<[^>]*>/g, '').slice(0, 150);
-    const shareText = `*${article.title}*\n\n_${cleanDesc}_\n\n📷 छायाचित्र: ${resolvedImg}\n\n👉 संपूर्ण बातमी वाचा: ${window.location.href}`;
+    // Placing the article URL first ensures WhatsApp's crawler recognizes it immediately for generating the rich preview
+    const shareText = `${window.location.href}\n\n*${article.title}*\n\n_${cleanDesc}_`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
     setShareWhatsAppCopied(true);

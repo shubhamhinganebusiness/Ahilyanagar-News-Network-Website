@@ -6,6 +6,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X } from 'lucide-react';
 import { News, CategoryType, SiteCustomization, BrandAdSlide, resolveDriveUrl } from '../types';
+import ImageLivePreview from './ImagePreview';
 import { getYouTubeId } from './LiveTvSection';
 import RichTextEditor from './RichTextEditor';
 import RansomNoteGenerator from './RansomNoteGenerator';
@@ -3436,25 +3437,11 @@ export default function AdminPanel({
                   </div>
 
                   {/* Real-time live cover image preview */}
-                  {imageURL.trim() && (
-                    <div className="pt-1.5 select-none animate-fade-in">
-                      <span className="text-[10px] text-slate-400 block mb-1 font-bold">कव्हर चित्र पूर्वदृश्य (Cover Image Live Preview):</span>
-                      <div className="aspect-video w-full max-w-[280px] rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative group shadow-xs">
-                        <img
-                          src={resolveDriveUrl(imageURL)}
-                          alt="कव्हर चित्र"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80';
-                          }}
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute top-1.5 right-1.5 bg-rose-600 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded-xs uppercase tracking-wider shadow-xs">
-                          Live Preview
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <ImageLivePreview 
+                    url={imageURL} 
+                    label="बातमीचे मुख्य छायाचित्र पूर्वदृश्य (Article Cover Photo Live Preview):" 
+                    type="rect" 
+                  />
 
                   {isUploading === 'news' && (
                     <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-2.5 animate-pulse">
@@ -5461,18 +5448,6 @@ export default function AdminPanel({
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700 block">प्रोफाइल चित्र (Photo / Avatar)</label>
                     <div className="flex items-center gap-3">
-                      {profileAvatarUrl ? (
-                        <img
-                          src={resolveDriveUrl(profileAvatarUrl)}
-                          alt="Avatar Preview"
-                          className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 font-bold text-xs shrink-0 select-none">
-                          चित्र
-                        </div>
-                      )}
                       <div className="flex-1 flex gap-2">
                         <input
                           type="url"
@@ -5494,6 +5469,11 @@ export default function AdminPanel({
                         </label>
                       </div>
                     </div>
+                    <ImageLivePreview 
+                      url={profileAvatarUrl} 
+                      label="लेखक प्रोफाइल चित्र पूर्वदृश्य (Author Profile Photo Live Preview):" 
+                      type="circle" 
+                    />
                   </div>
 
                   <div className="border-t border-slate-200/60 pt-2 my-2 space-y-3">
