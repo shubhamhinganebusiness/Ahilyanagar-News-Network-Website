@@ -3,12 +3,10 @@
   "channelLogoText": "माझा",
   "channelLogoAccentText": "अहिल्यानगर न्यूज नेटवर्क",
   "channelTagline": "माझा महाराष्ट्र, माझे पत्र",
-  "channelLogoUrl": "/logo.jpg",
-  "googleDriveUploadFolderId": "1hMqfiGvuMMErCxa__16tLzW-6i5fT0id",
-  "googleDriveUploadFolderName": "अहिल्यानगर न्यूज नेटवर्क अपलोड्स (Google Drive Folder)",
+  "channelLogoUrl": "/Images/logo.jpg",
   "footerAbout": "अहिल्यानगर न्यूज नेटवर्क हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.",
   "footerAddress": "अहिल्यानगर न्यूज नेटवर्क, महाराष्ट्र, भारत.",
-  "footerPhone": "+91-771",
+  "footerPhone": "+91-7719959593",
   "footerEmail": "editor@ahilyanagarnewsnetwork.in",
   "footerCopyrightSub": "महाराष्ट्राचे हक्ताचे व्यासपीठ",
   "breakingNewsText": "महायुती आणि महाविकास आघाडीमध्ये जागावाटपाचा तिढा सुटला; दोन्ही बाजूंकडून उमेदवारांची घोषणा | मुंबई-पुणे एक्सप्रेसवेवर भीषण अपघात, वाहतूक कोंडी | सोन्याच्या दरात घसरण, गुढीपाडव्याच्या पार्श्वभूमीवर ग्राहकांना दिलासा | आयपीएल २०२६: मुंबई इंडियन्सचा शानदार विजय, गुणतालिकेत वरचे स्थान मिळवले",
@@ -34,16 +32,16 @@
   "brandAdsEnabled": true,
   "brandAdsSlides": [
     {
-      "linkUrl": "#",
-      "title": "आमच्या न्यूज पोर्टलवर जाहिरात प्रसिद्ध करा व कोट्यवधी वाचकांपर्यंत पोहोचा!",
       "id": "slide-1",
-      "imageUrl": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80"
+      "title": "आमच्या न्यूज पोर्टलवर जाहिरात प्रसिद्ध करा व कोट्यवधी वाचकांपर्यंत पोहोचा!",
+      "imageUrl": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
+      "linkUrl": "#"
     },
     {
-      "title": "विशेष औद्योगिक जाहिरात: उद्योजक आणि व्यावसायिकांसाठी उत्तम माध्यम",
+      "linkUrl": "#",
       "id": "slide-2",
-      "imageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
-      "linkUrl": "#"
+      "title": "विशेष औद्योगिक जाहिरात: उद्योजक आणि व्यावसायिकांसाठी उत्तम माध्यम",
+      "imageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80"
     }
   ],
   "brandAdsTitle": "विशेष जाहिरात दालन",
@@ -69,104 +67,123 @@
   "footerLink5Url": "",
   "footerLink6Text": "",
   "footerLink6Url": "",
-  "authorProfiles": [],
+  "authorProfiles": [
+    {
+      "twitterUrl": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "id": "author-1783592211240",
+      "name": "Shubham Hingane",
+      "avatarUrl": "",
+      "email": "",
+      "bio": "Shubham Hingane"
+    }
+  ],
   "enableFirebaseStorage": false,
+  "googleDriveUploadFolderId": "1hMqfiGvuMMErCxa__16tLzW-6i5fT0id",
+  "googleDriveUploadFolderName": "अहिल्यानगर न्यूज नेटवर्क अपलोड्स (Google Drive Folder)",
   "recentActivities": [
     {
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "id": "act-1783591668238",
       "user": "Super Admin",
-      "timestamp": "2026-07-09T09:01:42.688Z",
-      "id": "act-1783587702688",
-      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही बातमी संपादित केली."
+      "timestamp": "2026-07-09T10:07:48.238Z"
     },
     {
-      "user": "Super Admin",
-      "timestamp": "2026-07-09T08:59:30.530Z",
+      "id": "act-1783587702688",
+      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही बातमी संपादित केली.",
+      "timestamp": "2026-07-09T09:01:42.688Z",
+      "user": "Super Admin"
+    },
+    {
+      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही बातमी पोर्टलवरून डिलीट केली.",
       "id": "act-1783587570530",
-      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही बातमी पोर्टलवरून डिलीट केली."
+      "timestamp": "2026-07-09T08:59:30.530Z",
+      "user": "Super Admin"
     },
     {
       "user": "Super Admin",
       "timestamp": "2026-07-09T08:56:21.822Z",
-      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही नवीन बातमी प्रकाशित केली.",
-      "id": "act-1783587381822"
+      "id": "act-1783587381822",
+      "action": "\"कर्जतचे ग्रामदैवत सद्गुरु गोदड महाराज\" ही नवीन बातमी प्रकाशित केली."
     },
     {
-      "id": "act-1783587111329",
-      "action": "\"sc\" ही बातमी पोर्टलवरून डिलीट केली.",
+      "user": "Super Admin",
       "timestamp": "2026-07-09T08:51:51.329Z",
-      "user": "Super Admin"
+      "id": "act-1783587111329",
+      "action": "\"sc\" ही बातमी पोर्टलवरून डिलीट केली."
     },
     {
       "user": "Super Admin",
       "timestamp": "2026-07-09T08:51:06.545Z",
-      "action": "\"sc\" ही नवीन बातमी प्रकाशित केली.",
-      "id": "act-1783587066545"
+      "id": "act-1783587066545",
+      "action": "\"sc\" ही नवीन बातमी प्रकाशित केली."
     },
     {
-      "action": "हेडर टॅगलाईन बदलून \"माझा महाराष्ट्र, माझे पत्र\" केली.",
       "id": "act-1783585976955",
-      "timestamp": "2026-07-09T08:32:56.955Z",
-      "user": "Super Admin"
+      "action": "हेडर टॅगलाईन बदलून \"माझा महाराष्ट्र, माझे पत्र\" केली.",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T08:32:56.955Z"
     },
     {
-      "action": "चॅनेलचे नाव बदलून \"अहिल्यानगर न्यूज नेटवर्क live\" केले.",
-      "id": "act-1783585975629",
       "timestamp": "2026-07-09T08:32:55.629Z",
-      "user": "Super Admin"
+      "user": "Super Admin",
+      "id": "act-1783585975629",
+      "action": "चॅनेलचे नाव बदलून \"अहिल्यानगर न्यूज नेटवर्क live\" केले."
     },
     {
+      "user": "Super Admin",
       "timestamp": "2026-07-09T08:32:46.999Z",
-      "user": "Super Admin",
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
-      "id": "act-1783585966999"
-    },
-    {
-      "user": "Super Admin",
-      "timestamp": "2026-07-09T08:32:25.093Z",
-      "action": "थेट क्लाउड स्टोरेजवर इमेज अपलोड बंद केले.",
-      "id": "act-1783585945093"
-    },
-    {
-      "timestamp": "2026-07-09T08:29:17.562Z",
-      "user": "Super Admin",
-      "action": "थेट क्लाउड स्टोरेजवर इमेज अपलोड सुरू केले.",
-      "id": "act-1783585757562"
-    },
-    {
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
-      "id": "act-1783568917129",
-      "timestamp": "2026-07-09T03:48:37.129Z",
-      "user": "Super Admin"
-    },
-    {
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
-      "id": "act-1783568914891",
-      "timestamp": "2026-07-09T03:48:34.891Z",
-      "user": "Super Admin"
-    },
-    {
-      "user": "Super Admin",
-      "timestamp": "2026-07-09T03:48:29.894Z",
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
-      "id": "act-1783568909894"
-    },
-    {
-      "id": "act-1783567865981",
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
-      "timestamp": "2026-07-09T03:31:05.981Z",
-      "user": "Super Admin"
-    },
-    {
-      "timestamp": "2026-07-09T03:30:24.963Z",
-      "user": "Super Admin",
-      "id": "act-1783567824963",
+      "id": "act-1783585966999",
       "action": "चित्रात्मक लोगोची लिंक सुधारित केली."
+    },
+    {
+      "action": "थेट क्लाउड स्टोरेजवर इमेज अपलोड बंद केले.",
+      "id": "act-1783585945093",
+      "timestamp": "2026-07-09T08:32:25.093Z",
+      "user": "Super Admin"
+    },
+    {
+      "id": "act-1783585757562",
+      "action": "थेट क्लाउड स्टोरेजवर इमेज अपलोड सुरू केले.",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T08:29:17.562Z"
+    },
+    {
+      "timestamp": "2026-07-09T03:48:37.129Z",
+      "user": "Super Admin",
+      "id": "act-1783568917129",
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली."
+    },
+    {
+      "id": "act-1783568914891",
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T03:48:34.891Z"
+    },
+    {
+      "id": "act-1783568909894",
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T03:48:29.894Z"
+    },
+    {
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "id": "act-1783567865981",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T03:31:05.981Z"
+    },
+    {
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "id": "act-1783567824963",
+      "user": "Super Admin",
+      "timestamp": "2026-07-09T03:30:24.963Z"
     },
     {
       "timestamp": "2026-07-09T03:30:14.899Z",
       "user": "Super Admin",
-      "id": "act-1783567814899",
-      "action": "चित्रात्मक लोगोची लिंक सुधारित केली."
+      "action": "चित्रात्मक लोगोची लिंक सुधारित केली.",
+      "id": "act-1783567814899"
     }
   ]
 }

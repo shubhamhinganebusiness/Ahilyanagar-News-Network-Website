@@ -192,7 +192,7 @@ export default function App() {
       channelLogoText: 'माझा',
       channelLogoAccentText: 'अहिल्यानगर न्यूज नेटवर्क',
       channelTagline: 'माझा महाराष्ट्र, माझे पत्र',
-      channelLogoUrl: '',
+      channelLogoUrl: '/Images/logo.jpg',
       footerAbout: 'अहिल्यानगर न्यूज नेटवर्क हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.',
       footerAddress: 'अहिल्यानगर न्यूज नेटवर्क, महाराष्ट्र, भारत.',
       footerPhone: '+९१ ९४२३२३४१९३',
@@ -238,16 +238,21 @@ export default function App() {
       brandAdsInterval: 5,
     };
 
+    const result = { ...defaultVals };
     try {
       const stored = localStorage.getItem('majhapatra_siteCustomization');
       if (stored) {
         const parsed = JSON.parse(stored);
-        return { ...defaultVals, ...parsed };
+        Object.assign(result, parsed);
       }
     } catch (e) {
       console.error('Error recovering local customization settings:', e);
     }
-    return defaultVals;
+
+    if (!result.channelLogoUrl || result.channelLogoUrl.includes('magnific.com') || result.channelLogoUrl === '/logo.jpg') {
+      result.channelLogoUrl = '/Images/logo.jpg';
+    }
+    return result;
   };
   const [siteSettings, setSiteSettings] = useState<SiteCustomization>(getInitialSettings);
 
@@ -359,6 +364,9 @@ export default function App() {
           if (data && typeof data === 'object') {
             setSiteSettings((prev) => {
               const merged = { ...prev, ...data };
+              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
+                merged.channelLogoUrl = '/Images/logo.jpg';
+              }
               try {
                 localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
               } catch (e) {
@@ -394,6 +402,9 @@ export default function App() {
           if (data && typeof data === 'object') {
             setSiteSettings((prev) => {
               const merged = { ...prev, ...data };
+              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
+                merged.channelLogoUrl = '/Images/logo.jpg';
+              }
               try {
                 localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
               } catch (e) {

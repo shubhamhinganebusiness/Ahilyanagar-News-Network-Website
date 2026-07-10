@@ -132,40 +132,83 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     setIsVideoPlaying(false);
     setShowCustomVideoField(false);
 
-    fetch(`/api/news/${articleId}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'बातमी मिळवण्यात त्रुटी आली.');
-        }
-        return res.json();
-      })
-      .then((data: News) => {
-        setArticle(data);
-        setIsLoading(false);
-        setVideoURLInput(data.videoURL || '');
-        // Seed standard random like count based on views
-        setLikesCount(Math.max(5, Math.floor(data.views * 0.4)));
-        setShareCount(Math.max(8, Math.floor(data.views * 0.25)));
+    const tryDirectFirestore = () => {
+      import('../utils/firebaseClient')
+        .then(({ getDirectNewsById, getDirectNews, setClientOnlyMode }) => {
+          setClientOnlyMode(true);
+          return Promise.all([
+            getDirectNewsById(articleId),
+            getDirectNews()
+          ]);
+        })
+        .then(([data, allArticles]) => {
+          setArticle(data);
+          setIsLoading(false);
+          setVideoURLInput(data.videoURL || '');
+          // Seed standard random like count based on views
+          setLikesCount(Math.max(5, Math.floor((data.views || 0) * 0.4)));
+          setShareCount(Math.max(8, Math.floor((data.views || 0) * 0.25)));
 
-        // Load Related Articles from same category via API - fetch and display exactly 3-4 articles
-        setIsRelatedLoading(true);
-        fetch(`/api/news?category=${encodeURIComponent(data.category)}`)
-          .then((r) => r.json())
-          .then((list: News[]) => {
-            const filtered = list.filter((item) => item._id !== data._id).slice(0, 4);
-            setRelatedArticles(filtered);
-            setIsRelatedLoading(false);
+          // Filter related articles from same category
+          const filtered = allArticles
+            .filter((item) => item._id !== data._id && item.category === data.category)
+            .slice(0, 4);
+          setRelatedArticles(filtered);
+        })
+        .catch((err) => {
+          console.error('Direct Firestore fetch article failed:', err);
+          setIsLoading(false);
+          addToast('बातमी लोड करण्यात अडचण आली.', 'error');
+          onBack();
+        });
+    };
+
+    import('../utils/firebaseClient')
+      .then(({ isClientOnlyMode }) => {
+        if (isClientOnlyMode()) {
+          tryDirectFirestore();
+          return;
+        }
+
+        fetch(`/api/news/${articleId}`)
+          .then(async (res) => {
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || 'बातमी मिळवण्यात त्रुटी आली.');
+            }
+            return res.json();
+          })
+          .then((data: News) => {
+            setArticle(data);
+            setIsLoading(false);
+            setVideoURLInput(data.videoURL || '');
+            // Seed standard random like count based on views
+            setLikesCount(Math.max(5, Math.floor((data.views || 0) * 0.4)));
+            setShareCount(Math.max(8, Math.floor((data.views || 0) * 0.25)));
+
+            // Load Related Articles from same category via API - fetch and display exactly 3-4 articles
+            setIsRelatedLoading(true);
+            fetch(`/api/news?category=${encodeURIComponent(data.category)}`)
+              .then((r) => r.json())
+              .then((list: News[]) => {
+                const filtered = list.filter((item) => item._id !== data._id).slice(0, 4);
+                setRelatedArticles(filtered);
+                setIsRelatedLoading(false);
+              })
+              .catch((err) => {
+                console.error(err);
+                setIsRelatedLoading(false);
+              });
           })
           .catch((err) => {
-            console.error(err);
-            setIsRelatedLoading(false);
+            console.warn('API fetch article failed, falling back to direct Firestore:', err);
+            tryDirectFirestore();
           });
       })
       .catch((err) => {
-        console.error(err);
+        console.error('Failed to load firebaseClient module:', err);
         setIsLoading(false);
-        addToast(err.message || 'बातमी उघडताना सर्व्हर त्रुटी आली. कृपया नंतर प्रयत्न करा.', 'error');
+        addToast('बातमी लोड करण्यात अडचण आली.', 'error');
         onBack();
       });
   }, [articleId]);

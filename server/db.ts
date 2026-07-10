@@ -158,7 +158,7 @@ const defaultSettings: SiteCustomization = {
   channelLogoText: 'माझा',
   channelLogoAccentText: 'पत्र',
   channelTagline: 'माझा महाराष्ट्र, माझे पत्र',
-  channelLogoUrl: '',
+  channelLogoUrl: '/Images/logo.jpg',
   footerAbout: 'माझापत्र (MajhaPatra) हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.',
   footerAddress: '१२, नरिमन पॉईंट, मुंबई - ४०००२१, महाराष्ट्र, भारत.',
   footerPhone: '+९१ २२ २४५६ ७८९०',
@@ -760,6 +760,11 @@ export class PortalDatabase {
           } else {
             (merged as any)[key] = firestoreVal !== undefined ? firestoreVal : (localVal !== undefined ? localVal : defaultVal);
           }
+        }
+
+        // Force the new local logo if the current one is empty, placeholder, or broken
+        if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
+          merged.channelLogoUrl = '/Images/logo.jpg';
         }
         
         // Sync local-first changes (like uploaded logo URL) back to Firestore if they differ

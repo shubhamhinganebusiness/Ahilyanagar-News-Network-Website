@@ -136,6 +136,27 @@ export async function getDirectNews(
   return list;
 }
 
+export async function getDirectNewsById(id: string): Promise<News> {
+  const db = getFirestoreDb();
+  const docRef = doc(db, 'news', id);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    try {
+      const currentViews = (data.views || 0) + 1;
+      await updateDoc(docRef, { views: currentViews });
+      data.views = currentViews;
+    } catch (e) {
+      console.warn('Could not increment view count directly on Firestore:', e);
+    }
+    return {
+      _id: snap.id,
+      ...data
+    } as News;
+  }
+  throw new Error('दिलेली बातमी सापडली नाही.');
+}
+
 export async function createDirectNews(newsData: Omit<News, '_id'>): Promise<News> {
   const db = getFirestoreDb();
   const newsCol = collection(db, 'news');
