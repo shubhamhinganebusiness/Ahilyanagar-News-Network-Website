@@ -473,11 +473,19 @@ export default function AdminPanel({
   };
 
   // Site Customization states
+  const permanentLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
+  const getRobustLogoUrl = (url?: string) => {
+    if (!url || url.trim() === '' || url.includes('magnific.com') || url === '/logo.jpg' || url === '/Images/logo.jpg') {
+      return permanentLogoUrl;
+    }
+    return url;
+  };
+
   const [custChannelName, setCustChannelName] = useState(siteSettings?.channelName || '');
   const [custLogoText, setCustLogoText] = useState(siteSettings?.channelLogoText || '');
   const [custLogoAccentText, setCustLogoAccentText] = useState(siteSettings?.channelLogoAccentText || '');
   const [custTagline, setCustTagline] = useState(siteSettings?.channelTagline || '');
-  const [custLogoUrl, setCustLogoUrl] = useState(siteSettings?.channelLogoUrl || '');
+  const [custLogoUrl, setCustLogoUrl] = useState(() => getRobustLogoUrl(siteSettings?.channelLogoUrl));
   const [custFooterAbout, setCustFooterAbout] = useState(siteSettings?.footerAbout || '');
   const [custFooterAddress, setCustFooterAddress] = useState(siteSettings?.footerAddress || '');
   const [custFooterPhone, setCustFooterPhone] = useState(siteSettings?.footerPhone || '');
@@ -1244,7 +1252,7 @@ export default function AdminPanel({
       setCustLogoText(siteSettings.channelLogoText || '');
       setCustLogoAccentText(siteSettings.channelLogoAccentText || '');
       setCustTagline(siteSettings.channelTagline || '');
-      setCustLogoUrl(siteSettings.channelLogoUrl || '');
+      setCustLogoUrl(getRobustLogoUrl(siteSettings.channelLogoUrl));
       setCustFooterAbout(siteSettings.footerAbout || '');
       setCustFooterAddress(siteSettings.footerAddress || '');
       setCustFooterPhone(siteSettings.footerPhone || '');
@@ -1736,7 +1744,7 @@ export default function AdminPanel({
         channelLogoText: custLogoText.trim(),
         channelLogoAccentText: custLogoAccentText.trim(),
         channelTagline: custTagline.trim(),
-        channelLogoUrl: custLogoUrl.trim(),
+        channelLogoUrl: getRobustLogoUrl(custLogoUrl.trim()),
         footerAbout: custFooterAbout.trim(),
         footerAddress: custFooterAddress.trim(),
         footerPhone: custFooterPhone.trim(),
@@ -1855,7 +1863,7 @@ export default function AdminPanel({
         channelLogoText: updatedFields && 'channelLogoText' in updatedFields ? updatedFields.channelLogoText : custLogoText.trim(),
         channelLogoAccentText: updatedFields && 'channelLogoAccentText' in updatedFields ? updatedFields.channelLogoAccentText : custLogoAccentText.trim(),
         channelTagline: updatedFields && 'channelTagline' in updatedFields ? updatedFields.channelTagline : custTagline.trim(),
-        channelLogoUrl: updatedFields && 'channelLogoUrl' in updatedFields ? updatedFields.channelLogoUrl : custLogoUrl.trim(),
+        channelLogoUrl: getRobustLogoUrl(updatedFields && 'channelLogoUrl' in updatedFields ? updatedFields.channelLogoUrl : custLogoUrl.trim()),
         footerAbout: updatedFields && 'footerAbout' in updatedFields ? updatedFields.footerAbout : custFooterAbout.trim(),
         footerAddress: updatedFields && 'footerAddress' in updatedFields ? updatedFields.footerAddress : custFooterAddress.trim(),
         footerPhone: updatedFields && 'footerPhone' in updatedFields ? updatedFields.footerPhone : custFooterPhone.trim(),
@@ -5455,7 +5463,7 @@ export default function AdminPanel({
                     <div className="flex items-center gap-3">
                       {profileAvatarUrl ? (
                         <img
-                          src={profileAvatarUrl}
+                          src={resolveDriveUrl(profileAvatarUrl)}
                           alt="Avatar Preview"
                           className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
                           referrerPolicy="no-referrer"
@@ -5589,7 +5597,7 @@ export default function AdminPanel({
                       <div className="space-y-3">
                         <div className="flex items-start space-x-3">
                           <img
-                            src={authorItem.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
+                            src={authorItem.avatarUrl ? resolveDriveUrl(authorItem.avatarUrl) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'}
                             alt={authorItem.name}
                             className="w-11 h-11 rounded-full object-cover bg-slate-200 border border-rose-100"
                             onError={(e) => {

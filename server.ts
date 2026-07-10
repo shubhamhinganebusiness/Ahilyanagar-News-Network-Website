@@ -1623,12 +1623,27 @@ Follow these rules strictly:
       .replace(/'/g, '&#039;');
   }
 
+  // Robust function to resolve Google Drive URLs to static direct image CDN links (lh3.googleusercontent.com/d/{id})
+  function resolveDriveUrl(url: string): string {
+    if (!url) return '';
+    const trimmed = url.trim();
+    const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileDMatch && fileDMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${fileDMatch[1]}`;
+    }
+    const ucMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (ucMatch && ucMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${ucMatch[1]}`;
+    }
+    return trimmed;
+  }
+
   let globalVite: any = null;
 
-  // Intercept requests to / or /index.html to dynamically inject Open Graph, Twitter Cards, and meta tags for shared links
-  app.get(['/', '/index.html'], async (req, res, next) => {
+  // Helper to serve HTML with dynamically injected metadata (supports social media previews flawlessly)
+  async function serveHtmlWithMetadata(req: express.Request, res: express.Response, next: express.NextFunction) {
     try {
-      const articleId = req.query.article as string;
+      const articleId = (req.query.article || '') as string;
       const isProd = process.env.NODE_ENV === 'production';
       const indexPath = isProd 
         ? path.join(process.cwd(), 'dist/index.html')
@@ -1658,6 +1673,9 @@ Follow these rules strictly:
           imageUrl = article.imageURL || imageUrl;
         }
       }
+
+      // Convert Google Drive urls to direct static image link so crawlers can load them instantly
+      imageUrl = resolveDriveUrl(imageUrl);
 
       // Ensure imageUrl is absolute
       const host = req.get('host') || 'majhapatra.com';
@@ -1695,8 +1713,11 @@ Follow these rules strictly:
     <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
       `;
 
-      // Replace existing <title> tags to prevent duplicates
+      // Remove any existing Open Graph, Twitter, description, and title tags to prevent duplicates
       html = html.replace(/<title>[^]*?<\/title>/gi, '');
+      html = html.replace(/<meta\s+(?:property|name)="og:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '');
+      html = html.replace(/<meta\s+(?:property|name)="twitter:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '');
+      html = html.replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/gi, '');
 
       // Inject new meta tags and title immediately inside <head>
       html = html.replace(/<head>/i, `<head>${metaTags}`);
@@ -1712,7 +1733,10 @@ Follow these rules strictly:
       console.error('Error serving dynamic metadata page:', err);
       return next();
     }
-  });
+  }
+
+  // Intercept requests to / or /index.html to dynamically inject Open Graph, Twitter Cards, and meta tags for shared links
+  app.get(['/', '/index.html'], serveHtmlWithMetadata);
 
   // Integrate Vite dev middleware OR static production static server
   if (process.env.NODE_ENV !== 'production') {
@@ -1724,9 +1748,7 @@ Follow these rules strictly:
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', serveHtmlWithMetadata);
   }
 
   // 24 hours before poll expires notifications

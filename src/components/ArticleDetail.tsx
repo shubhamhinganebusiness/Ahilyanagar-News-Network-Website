@@ -346,10 +346,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       if (stored) {
         setComments(JSON.parse(stored));
       } else {
-        const defaults = [
-          { id: 'c1', author: 'दिनेश सोनवणे (अहिल्यानगर)', text: 'अतिशय महत्त्वपूर्ण आणि सविस्तर माहिती दिली आहे. प्रशासनाने यावर तातडीने बैठक घेऊन कडक अंमलबजावणी करणे गरजेचे आहे.', date: '२ तास आधी', likes: 14 },
-          { id: 'c2', author: 'प्रियांका थोरवे', text: 'अहिल्यानगर न्यूज नेटवर्क नेहमीच सर्वात आधी आणि विश्वसनीय बातम्या नागरिकांपर्यंत पोहोचवते. धन्यवाद संपादक टीम!', date: '४ तास आधी', likes: 8 },
-        ];
+        const defaults: any[] = [];
         setComments(defaults);
         localStorage.setItem(`majhapatra_comments_${articleId}`, JSON.stringify(defaults));
       }
@@ -517,7 +514,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
 
   const shareOnWhatsApp = () => {
     if (!article) return;
-    const shareText = `${article.title}\n${window.location.href}`;
+    const resolvedImg = resolveDriveUrl(article.imageURL);
+    const cleanDesc = article.description || article.content.replace(/<[^>]*>/g, '').slice(0, 150);
+    const shareText = `*${article.title}*\n\n_${cleanDesc}_\n\n📷 छायाचित्र: ${resolvedImg}\n\n👉 संपूर्ण बातमी वाचा: ${window.location.href}`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
     setShareWhatsAppCopied(true);
@@ -1231,6 +1230,47 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
           </div>
         )}
       </div>
+
+      {/* Sticky Sponsor Contact Action Bar */}
+      {(() => {
+        const sponsorWhatsapp = (siteSettings?.detailAd1Whatsapp || siteSettings?.detailAd2Whatsapp || siteSettings?.detailAd3Whatsapp || siteSettings?.detailAd4Whatsapp || '9423234193').trim();
+        const sponsorPhone = (siteSettings?.detailAd1Phone || siteSettings?.detailAd2Phone || siteSettings?.detailAd3Phone || siteSettings?.detailAd4Phone || '9423234193').trim();
+        return (
+          <div className="sticky top-[100px] z-30 my-6 bg-amber-50/95 backdrop-blur-md border border-amber-200/60 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 select-none animate-fade-in">
+            <div className="flex items-center space-x-2.5">
+              <div className="bg-amber-100 p-2.5 rounded-xl text-amber-700 shrink-0">
+                <Sparkles className="h-5 w-5 text-amber-600 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-slate-800 leading-snug">प्रायोजक थेट संपर्क (Sponsor Direct Contact)</h4>
+                <p className="text-[10px] sm:text-xs text-slate-500 leading-normal">या बातमीच्या प्रायोजकांशी त्वरित संपर्क साधण्यासाठी खालील बटणे वापरा:</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {sponsorWhatsapp && (
+                <a
+                  href={`https://wa.me/${sponsorWhatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-2 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <MessageSquare className="h-4 w-4 shrink-0" />
+                  <span>व्हाट्सॲप संपर्क</span>
+                </a>
+              )}
+              {sponsorPhone && (
+                <a
+                  href={`tel:${sponsorPhone}`}
+                  className="flex-1 sm:flex-initial bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-2 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <Phone className="h-4 w-4 shrink-0" />
+                  <span>कॉल करा</span>
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* YouTube Video Section - Embedded below the main image, before the article content */}
       {ytVideoId && (

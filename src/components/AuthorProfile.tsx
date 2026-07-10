@@ -1,6 +1,6 @@
 import React from 'react';
 import { Mail, Twitter, Facebook, Instagram } from 'lucide-react';
-import { AuthorProfile as AuthorProfileType } from '../types';
+import { AuthorProfile as AuthorProfileType, resolveDriveUrl } from '../types';
 
 interface AuthorProfileProps {
   author: AuthorProfileType;
@@ -13,7 +13,7 @@ export default function AuthorProfile({ author }: AuthorProfileProps) {
       className="mt-8 p-5 sm:p-6 bg-slate-50/60 border border-slate-200/50 rounded-2xl flex flex-col sm:flex-row items-start gap-5 transition-all duration-300 hover:shadow-xs text-slate-800"
     >
       <img 
-        src={author.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'} 
+        src={author.avatarUrl ? resolveDriveUrl(author.avatarUrl) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80'} 
         alt={author.name}
         className="w-16 h-16 rounded-full object-cover border border-slate-200/80 shadow-3xs shrink-0"
         referrerPolicy="no-referrer"
