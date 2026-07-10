@@ -56,7 +56,8 @@ export default function AdminPanel({
 
   // Form States to Add News
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था'>('राज्य');
+  const [category, setCategory] = useState<string>('राज्य');
+  const [customCategory, setCustomCategory] = useState<string>('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
   const [imageURL, setImageURL] = useState('');
@@ -195,11 +196,11 @@ export default function AdminPanel({
   // AI Draft Generator States
   const [aiTopic, setAiTopic] = useState('');
   const [aiKeyPoints, setAiKeyPoints] = useState('');
-  const [aiCategory, setAiCategory] = useState<'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था'>('राज्य');
+  const [aiCategory, setAiCategory] = useState<string>('राज्य');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [generatedDraft, setGeneratedDraft] = useState<{
     title: string;
-    category: 'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था';
+    category: string;
     description: string;
     plainTextContent: string;
     rawHtml: string;
@@ -705,7 +706,7 @@ export default function AdminPanel({
   });
   
   const [newScratchText, setNewScratchText] = useState('');
-  const [newScratchCategory, setNewScratchCategory] = useState<'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था'>('शहर');
+  const [newScratchCategory, setNewScratchCategory] = useState<string>('शहर');
 
   // Custom live visitor simulation & scratchpad local storage sync
   useEffect(() => {
@@ -976,9 +977,11 @@ export default function AdminPanel({
       setUploadStatusText('चित्र कॉम्प्रेस व रीसाईझ केले जात आहे...');
 
       try {
-        // Use conservative sizes (max 600px for logo/avatar, 1200px for banners/news/slides)
-        const maxDim = (targetField === 'logo' || targetField === 'authorAvatar') ? 600 : 1200;
-        base64Data = await compressImage(base64Data, maxDim, maxDim, 0.82);
+        // Highly optimized client-side compression to guarantee lightweight payloads (~15KB-50KB)
+        // This easily bypasses hosting/cPanel server payload size limits (usually 1MB or 2MB)
+        // and also bypasses security rules of LiteSpeed/ModSecurity firewalls.
+        const maxDim = (targetField === 'logo' || targetField === 'authorAvatar') ? 300 : 800;
+        base64Data = await compressImage(base64Data, maxDim, maxDim, 0.65);
       } catch (compressErr) {
         console.warn('Image compression failed, using original base64:', compressErr);
       }
@@ -1054,7 +1057,8 @@ export default function AdminPanel({
               headers,
               body: JSON.stringify({
                 name: file.name,
-                data: base64Data
+                data: base64Data,
+                targetField
               })
             });
           } catch (fetchErr) {
@@ -1073,7 +1077,8 @@ export default function AdminPanel({
                 headers,
                 body: JSON.stringify({
                   name: file.name,
-                  data: base64Data
+                  data: base64Data,
+                  targetField
                 })
               });
             } catch (fetchErr2) {
@@ -1092,7 +1097,8 @@ export default function AdminPanel({
                 headers,
                 body: JSON.stringify({
                   name: file.name,
-                  data: base64Data
+                  data: base64Data,
+                  targetField
                 })
               });
             } catch (fetchErr3) {
@@ -1134,10 +1140,12 @@ export default function AdminPanel({
           setCustLogoUrl(uploadedUrl);
           addToast('प्रवाहित लोगो यशस्वीरित्या डिव्हाइसमधून अपलोड केला गेला!', 'success');
           await addActivityLog('डिव्हाइसमधून मुख्य लोगो चित्र बदलले.', { channelLogoUrl: uploadedUrl });
+          await autoSaveBranding({ channelLogoUrl: uploadedUrl });
         } else if (targetField === 'banner') {
           setAdBannerImageUrl(uploadedUrl);
           addToast('जाहिरात बॅनर यशस्वीरित्या डिव्हाइसमधून अपलोड केला गेला!', 'success');
           await addActivityLog('होमपेजसाठी नवीन जाहिरात बॅनर चित्र अपलोड केले.', { adBannerImageUrl: uploadedUrl });
+          await autoSaveBranding({ adBannerImageUrl: uploadedUrl });
         } else if (targetField === 'slide') {
           if (slideIndex !== undefined) {
             const updated = [...brandAdsSlides];
@@ -1147,6 +1155,7 @@ export default function AdminPanel({
             setBrandAdsSlides(updated);
             addToast('या जाहिरात स्लाईडचे चित्र यशस्वीरित्या बदलले गेले!', 'success');
             await addActivityLog(`विशेष जाहिरात स्लाईड क्र. ${slideIndex + 1} चे चित्र बदलले.`, { brandAdsSlides: updated });
+            await autoSaveBranding({ brandAdsSlides: updated });
           } else {
             setNewSlideImgUrl(uploadedUrl);
             addToast('जाहिरात स्लाईड यशस्वीरित्या डिव्हाइसमधून अपलोड केली गेली! जोडण्यासाठी "जोडा" बटन दाबा.', 'success');
@@ -1155,18 +1164,22 @@ export default function AdminPanel({
           setDetailAd1ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. १ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
           await addActivityLog('बातमी वाचन जाहिरात क्र. १ चे चित्र अद्ययावत केले.', { detailAd1ImageUrl: uploadedUrl });
+          await autoSaveBranding({ detailAd1ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd2') {
           setDetailAd2ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. २ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
           await addActivityLog('बातमी वाचन जाहिरात क्र. २ चे चित्र अद्ययावत केले.', { detailAd2ImageUrl: uploadedUrl });
+          await autoSaveBranding({ detailAd2ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd3') {
           setDetailAd3ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. ३ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
           await addActivityLog('बातमी वाचन जाहिरात क्र. ३ चे चित्र अद्ययावत केले.', { detailAd3ImageUrl: uploadedUrl });
+          await autoSaveBranding({ detailAd3ImageUrl: uploadedUrl });
         } else if (targetField === 'detailAd4') {
           setDetailAd4ImageUrl(uploadedUrl);
           addToast('बातमी वाचन जाहिरात क्र. ४ ची इमेज यशस्वीरित्या अपलोड केली गेली!', 'success');
           await addActivityLog('बातमी वाचन जाहिरात क्र. ४ चे चित्र अद्ययावत केले.', { detailAd4ImageUrl: uploadedUrl });
+          await autoSaveBranding({ detailAd4ImageUrl: uploadedUrl });
         } else if (targetField === 'authorAvatar') {
           setProfileAvatarUrl(uploadedUrl);
           addToast('लेखकाचे प्रोफाईल चित्र यशस्वीरित्या अपलोड केले गेले!', 'success');
@@ -1246,19 +1259,19 @@ export default function AdminPanel({
 
       // Detailed Reading Page Advertisements synchronization
       setDetailAd1Enabled(siteSettings.detailAd1Enabled !== false);
-      setDetailAd1ImageUrl(siteSettings.detailAd1ImageUrl || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80');
+      setDetailAd1ImageUrl(siteSettings.detailAd1ImageUrl || '/Images/ads1.png');
       setDetailAd1Link(siteSettings.detailAd1Link || '#');
 
       setDetailAd2Enabled(siteSettings.detailAd2Enabled !== false);
-      setDetailAd2ImageUrl(siteSettings.detailAd2ImageUrl || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80');
+      setDetailAd2ImageUrl(siteSettings.detailAd2ImageUrl || '/Images/ads2.png');
       setDetailAd2Link(siteSettings.detailAd2Link || '#');
 
       setDetailAd3Enabled(siteSettings.detailAd3Enabled !== false);
-      setDetailAd3ImageUrl(siteSettings.detailAd3ImageUrl || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');
+      setDetailAd3ImageUrl(siteSettings.detailAd3ImageUrl || '/Images/ads3.png');
       setDetailAd3Link(siteSettings.detailAd3Link || '#');
 
       setDetailAd4Enabled(siteSettings.detailAd4Enabled !== false);
-      setDetailAd4ImageUrl(siteSettings.detailAd4ImageUrl || 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80');
+      setDetailAd4ImageUrl(siteSettings.detailAd4ImageUrl || '/Images/ads4.png');
       setDetailAd4Link(siteSettings.detailAd4Link || '#');
 
       setBrandAdsEnabled(siteSettings.brandAdsEnabled !== false);
@@ -3239,17 +3252,41 @@ export default function AdminPanel({
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700">बातमी श्रेणी (Category) <span className="text-rose-500">*</span></label>
                     <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value as any)}
+                      value={['राष्ट्रीय', 'राज्य', 'शहर', 'राजकीय', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'].includes(category) ? category : 'custom'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'custom') {
+                          setCategory('custom');
+                          setCustomCategory('');
+                        } else {
+                          setCategory(val);
+                        }
+                      }}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold select-none text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                     >
                       <option value="राष्ट्रीय">राष्ट्रीय</option>
                       <option value="राज्य">राज्य</option>
                       <option value="शहर">शहर</option>
+                      <option value="राजकीय">राजकीय (Politics)</option>
                       <option value="क्रीडा">क्रीडा</option>
                       <option value="मनोरंजन">मनोरंजन</option>
                       <option value="अर्थव्यवस्था">अर्थव्यवस्था</option>
+                      <option value="custom">✍️ नवीन श्रेणी जोडा... (Custom Category)</option>
                     </select>
+                    {(category === 'custom' || !['राष्ट्रीय', 'राज्य', 'शहर', 'राजकीय', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'].includes(category)) && (
+                      <input
+                        type="text"
+                        placeholder="नवीन श्रेणीचे नाव टाइप करा..."
+                        value={category === 'custom' ? customCategory : category}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomCategory(val);
+                          setCategory(val);
+                        }}
+                        className="mt-2 w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                        required
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-1">

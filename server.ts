@@ -31,31 +31,85 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-  // Create upload folder if not existing
-  const uploadDir = path.join(process.cwd(), 'public/uploads');
-  try {
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+  // Create required directories and set proper permissions (to solve cPanel/Hostinger permissions errors)
+  // We create both uppercase and lowercase variations to guarantee support for any deployment folder case
+  const foldersToCreate = [
+    'public/uploads',
+    'public/Uploads',
+    'public/Images',
+    'public/images',
+    'dist/uploads',
+    'dist/Uploads',
+    'dist/Images',
+    'dist/images',
+    'Images',
+    'images',
+    'uploads',
+    'Uploads',
+    'data'
+  ];
+  for (const folder of foldersToCreate) {
+    const fullPath = path.join(process.cwd(), folder);
+    try {
+      if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath, { recursive: true });
+      }
+      // Explicitly set directory permissions to 755 to ensure hosting servers allow file-writing
+      try {
+        fs.chmodSync(fullPath, 0o755);
+      } catch (chmodErr) {
+        // Safe to ignore if unsupported on local OS/environment
+      }
+    } catch (dirErr) {
+      console.warn(`Could not setup directory ${folder} on server startup:`, dirErr);
     }
-  } catch (dirErr) {
-    console.warn('Could not create public/uploads directory on server startup:', dirErr);
   }
 
-  // Serve static uploads with persistent fallback to Firestore
-  app.get('/uploads/:filename', async (req, res, next) => {
-    const filename = req.params.filename;
-    const filePath = path.join(process.cwd(), 'public/uploads', filename);
-    const prodFilePath = path.join(process.cwd(), 'dist/uploads', filename);
+  const uploadDir = path.join(process.cwd(), 'public/uploads');
 
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath, (err) => {
-        if (err && !res.headersSent) {
-          next();
+  // Highly robust helper to find files case-insensitively on disk in multiple folders
+  const findFileCaseInsensitive = (parentDirs: string[], subDirs: string[], targetFilename: string): string | null => {
+    const getCaseVariants = (str: string): string[] => {
+      const s = str.trim();
+      if (!s) return [];
+      const lower = s.toLowerCase();
+      const upper = s.toUpperCase();
+      const capitalized = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      return Array.from(new Set([s, lower, upper, capitalized]));
+    };
+
+    const targetLower = targetFilename.toLowerCase();
+
+    for (const parent of parentDirs) {
+      for (const sub of subDirs) {
+        const subVariants = getCaseVariants(sub);
+        for (const subVariant of subVariants) {
+          const folderPath = parent === '.' ? path.join(process.cwd(), subVariant) : path.join(process.cwd(), parent, subVariant);
+          if (fs.existsSync(folderPath)) {
+            try {
+              const files = fs.readdirSync(folderPath);
+              const match = files.find(f => f.toLowerCase() === targetLower);
+              if (match) {
+                return path.join(folderPath, match);
+              }
+            } catch (err) {
+              // Ignore directory read issues
+            }
+          }
         }
-      });
+      }
     }
-    if (fs.existsSync(prodFilePath)) {
-      return res.sendFile(prodFilePath, (err) => {
+    return null;
+  };
+
+  // Serve static uploads with persistent fallback to Firestore and case-flexible directory searching
+  const serveUpload = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const filename = req.params.filename;
+    
+    // Check if file exists case-insensitively on disk first
+    const diskPath = findFileCaseInsensitive(['public', 'dist', '.'], ['uploads', 'Uploads'], filename);
+    if (diskPath) {
+      return res.sendFile(diskPath, (err) => {
         if (err && !res.headersSent) {
           next();
         }
@@ -75,57 +129,48 @@ async function bootstrap() {
         }
         const buffer = Buffer.from(base64Data, 'base64');
         
-        // Try to write local cache but don't fail if read-only filesystem
-          try {
-            const uploadDir = path.join(process.cwd(), 'public/uploads');
-            if (!fs.existsSync(uploadDir)) {
-              fs.mkdirSync(uploadDir, { recursive: true });
-            }
-            await fs.promises.writeFile(filePath, buffer);
-          } catch (writeErr) {
-            console.warn(`Could not cache recovered file ${filename} to public/uploads disk (filesystem may be read-only):`, writeErr);
-          }
-          
-          // Also write to dist/uploads if in production (optional cache)
-          if (process.env.NODE_ENV === 'production') {
-            try {
-              const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
-              if (!fs.existsSync(prodUploadDir)) {
-                fs.mkdirSync(prodUploadDir, { recursive: true });
-              }
-              await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
-            } catch (writeErr2) {
-              console.warn(`Could not cache recovered file ${filename} to dist/uploads disk:`, writeErr2);
-            }
-          }
+        // Write to both uppercase and lowercase paths to be extremely redundant
+        const targetFolders = [
+          path.join(process.cwd(), 'public/uploads'),
+          path.join(process.cwd(), 'public/Uploads'),
+          path.join(process.cwd(), 'dist/uploads'),
+          path.join(process.cwd(), 'dist/Uploads'),
+          path.join(process.cwd(), 'uploads'),
+          path.join(process.cwd(), 'Uploads')
+        ];
 
-          console.log(`Successfully recovered ${filename} from Firestore and cached locally.`);
-          return res.contentType(backup.contentType || 'image/jpeg').send(buffer);
+        for (const folder of targetFolders) {
+          try {
+            if (!fs.existsSync(folder)) {
+              fs.mkdirSync(folder, { recursive: true });
+            }
+            await fs.promises.writeFile(path.join(folder, filename), buffer);
+          } catch (writeErr) {
+            // Ignore (filesystem may be read-only)
+          }
         }
+
+        console.log(`Successfully recovered ${filename} from database backup.`);
+        return res.contentType(backup.contentType || 'image/jpeg').send(buffer);
+      }
     } catch (err) {
       console.error(`Failed to recover upload ${filename} from Firestore:`, err);
     }
 
     next();
-  });
+  };
 
-  app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+  app.get('/uploads/:filename', serveUpload);
+  app.get('/Uploads/:filename', serveUpload);
 
-  // Serve static Images with persistent fallback to Firestore
-  app.get('/Images/:filename', async (req, res, next) => {
+  // Serve static Images with persistent fallback to Firestore and case-flexible directory searching
+  const serveImage = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const filename = req.params.filename;
-    const filePath = path.join(process.cwd(), 'public/Images', filename);
-    const prodFilePath = path.join(process.cwd(), 'dist/Images', filename);
 
-    if (fs.existsSync(filePath)) {
-      return res.sendFile(filePath, (err) => {
-        if (err && !res.headersSent) {
-          next();
-        }
-      });
-    }
-    if (fs.existsSync(prodFilePath)) {
-      return res.sendFile(prodFilePath, (err) => {
+    // Check if file exists case-insensitively on disk first
+    const diskPath = findFileCaseInsensitive(['public', 'dist', '.'], ['Images', 'images'], filename);
+    if (diskPath) {
+      return res.sendFile(diskPath, (err) => {
         if (err && !res.headersSent) {
           next();
         }
@@ -145,31 +190,28 @@ async function bootstrap() {
         }
         const buffer = Buffer.from(base64Data, 'base64');
         
-        // Try to write local cache but don't fail if read-only filesystem
-        try {
-          const imagesDir = path.join(process.cwd(), 'public/Images');
-          if (!fs.existsSync(imagesDir)) {
-            fs.mkdirSync(imagesDir, { recursive: true });
-          }
-          await fs.promises.writeFile(filePath, buffer);
-        } catch (writeErr) {
-          console.warn(`Could not cache recovered file ${filename} to public/Images disk (filesystem may be read-only):`, writeErr);
-        }
-        
-        // Also write to dist/Images if in production (optional cache)
-        if (process.env.NODE_ENV === 'production') {
+        // Write to both uppercase and lowercase paths to be extremely redundant
+        const targetFolders = [
+          path.join(process.cwd(), 'public/Images'),
+          path.join(process.cwd(), 'public/images'),
+          path.join(process.cwd(), 'dist/Images'),
+          path.join(process.cwd(), 'dist/images'),
+          path.join(process.cwd(), 'Images'),
+          path.join(process.cwd(), 'images')
+        ];
+
+        for (const folder of targetFolders) {
           try {
-            const prodImagesDir = path.join(process.cwd(), 'dist/Images');
-            if (!fs.existsSync(prodImagesDir)) {
-              fs.mkdirSync(prodImagesDir, { recursive: true });
+            if (!fs.existsSync(folder)) {
+              fs.mkdirSync(folder, { recursive: true });
             }
-            await fs.promises.writeFile(path.join(prodImagesDir, filename), buffer);
-          } catch (writeErr2) {
-            console.warn(`Could not cache recovered file ${filename} to dist/Images disk:`, writeErr2);
+            await fs.promises.writeFile(path.join(folder, filename), buffer);
+          } catch (writeErr) {
+            // Ignore (filesystem may be read-only)
           }
         }
 
-        console.log(`Successfully recovered image ${filename} from Firestore and cached locally.`);
+        console.log(`Successfully recovered image ${filename} from database backup.`);
         return res.contentType(backup.contentType || 'image/jpeg').send(buffer);
       }
     } catch (err) {
@@ -177,9 +219,26 @@ async function bootstrap() {
     }
 
     next();
-  });
+  };
 
-  app.use('/Images', express.static(path.join(process.cwd(), 'public/Images')));
+  app.get('/Images/:filename', serveImage);
+  app.get('/images/:filename', serveImage);
+
+  // Static assets serving with absolute support for both uppercase and lowercase directories
+  const staticParents = ['public', 'dist', '.'];
+  const uploadPaths = ['uploads', 'Uploads'];
+  const imagePaths = ['Images', 'images'];
+
+  for (const parent of staticParents) {
+    for (const sub of uploadPaths) {
+      app.use('/uploads', express.static(path.join(process.cwd(), parent, sub)));
+      app.use('/Uploads', express.static(path.join(process.cwd(), parent, sub)));
+    }
+    for (const sub of imagePaths) {
+      app.use('/Images', express.static(path.join(process.cwd(), parent, sub)));
+      app.use('/images', express.static(path.join(process.cwd(), parent, sub)));
+    }
+  }
 
   // Enriched Auth Middleware that supports Super Admin AND Database Authors
   async function checkAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -694,54 +753,37 @@ Follow these rules strictly:
       const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filename = `${Date.now()}-${Math.round(Math.random() * 1e5)}_${cleanName}`;
       
-      let filePath = '';
+      let targetFolders: string[] = [];
       if (isDetailAd) {
-        const imagesDir = path.join(process.cwd(), 'public/Images');
-        try {
-          if (!fs.existsSync(imagesDir)) {
-            fs.mkdirSync(imagesDir, { recursive: true });
-          }
-        } catch (e) {}
-        filePath = path.join(imagesDir, filename);
+        targetFolders = [
+          path.join(process.cwd(), 'public/Images'),
+          path.join(process.cwd(), 'public/images'),
+          path.join(process.cwd(), 'dist/Images'),
+          path.join(process.cwd(), 'dist/images'),
+          path.join(process.cwd(), 'Images'),
+          path.join(process.cwd(), 'images')
+        ];
       } else {
-        filePath = path.join(uploadDir, filename);
+        targetFolders = [
+          path.join(process.cwd(), 'public/uploads'),
+          path.join(process.cwd(), 'public/Uploads'),
+          path.join(process.cwd(), 'dist/uploads'),
+          path.join(process.cwd(), 'dist/Uploads'),
+          path.join(process.cwd(), 'uploads'),
+          path.join(process.cwd(), 'Uploads')
+        ];
       }
 
-      // Save to disk (try but don't fail if read-only filesystem)
-      try {
-        await fs.promises.writeFile(filePath, buffer);
-        if (isDetailAd) {
-          // Also save in root Images directory to keep clean copy in dev
-          const rootImagesDir = path.join(process.cwd(), 'Images');
-          try {
-            if (!fs.existsSync(rootImagesDir)) {
-              fs.mkdirSync(rootImagesDir, { recursive: true });
-            }
-            await fs.promises.writeFile(path.join(rootImagesDir, filename), buffer);
-          } catch (writeErrRoot) {}
-        }
-      } catch (writeErr) {
-        console.warn(`Could not write uploaded file ${filename} to disk (filesystem may be read-only):`, writeErr);
-      }
-
-      // Also write to dist if NODE_ENV is production (optional cache)
-      if (process.env.NODE_ENV === 'production') {
+      // Save to all target folders (try but don't fail if read-only filesystem)
+      for (const folder of targetFolders) {
         try {
-          if (isDetailAd) {
-            const prodImagesDir = path.join(process.cwd(), 'dist/Images');
-            if (!fs.existsSync(prodImagesDir)) {
-              fs.mkdirSync(prodImagesDir, { recursive: true });
-            }
-            await fs.promises.writeFile(path.join(prodImagesDir, filename), buffer);
-          } else {
-            const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
-            if (!fs.existsSync(prodUploadDir)) {
-              fs.mkdirSync(prodUploadDir, { recursive: true });
-            }
-            await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
+          if (!fs.existsSync(folder)) {
+            fs.mkdirSync(folder, { recursive: true });
           }
-        } catch (writeErr2) {
-          console.warn(`Could not write uploaded file ${filename} to production cache disk:`, writeErr2);
+          const filePath = path.join(folder, filename);
+          await fs.promises.writeFile(filePath, buffer);
+        } catch (writeErr) {
+          // Ignore - folder could be read-only or unsupported
         }
       }
 
