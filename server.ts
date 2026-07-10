@@ -45,9 +45,21 @@ async function bootstrap() {
   app.get('/uploads/:filename', async (req, res, next) => {
     const filename = req.params.filename;
     const filePath = path.join(process.cwd(), 'public/uploads', filename);
+    const prodFilePath = path.join(process.cwd(), 'dist/uploads', filename);
 
     if (fs.existsSync(filePath)) {
-      return next(); // Served by express.static below
+      return res.sendFile(filePath, (err) => {
+        if (err && !res.headersSent) {
+          next();
+        }
+      });
+    }
+    if (fs.existsSync(prodFilePath)) {
+      return res.sendFile(prodFilePath, (err) => {
+        if (err && !res.headersSent) {
+          next();
+        }
+      });
     }
 
     // Not on disk - try loading from Firestore persistent backup
@@ -98,6 +110,76 @@ async function bootstrap() {
   });
 
   app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
+  // Serve static Images with persistent fallback to Firestore
+  app.get('/Images/:filename', async (req, res, next) => {
+    const filename = req.params.filename;
+    const filePath = path.join(process.cwd(), 'public/Images', filename);
+    const prodFilePath = path.join(process.cwd(), 'dist/Images', filename);
+
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath, (err) => {
+        if (err && !res.headersSent) {
+          next();
+        }
+      });
+    }
+    if (fs.existsSync(prodFilePath)) {
+      return res.sendFile(prodFilePath, (err) => {
+        if (err && !res.headersSent) {
+          next();
+        }
+      });
+    }
+
+    // Not on disk - try loading from Firestore persistent backup
+    try {
+      const backup = await db.getUpload(filename);
+      if (backup && backup.data) {
+        // Recover the file and cache it locally
+        let base64Data = backup.data;
+        const base64Marker = ';base64,';
+        const markerIndex = backup.data.indexOf(base64Marker);
+        if (markerIndex !== -1) {
+          base64Data = backup.data.substring(markerIndex + base64Marker.length);
+        }
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Try to write local cache but don't fail if read-only filesystem
+        try {
+          const imagesDir = path.join(process.cwd(), 'public/Images');
+          if (!fs.existsSync(imagesDir)) {
+            fs.mkdirSync(imagesDir, { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, buffer);
+        } catch (writeErr) {
+          console.warn(`Could not cache recovered file ${filename} to public/Images disk (filesystem may be read-only):`, writeErr);
+        }
+        
+        // Also write to dist/Images if in production (optional cache)
+        if (process.env.NODE_ENV === 'production') {
+          try {
+            const prodImagesDir = path.join(process.cwd(), 'dist/Images');
+            if (!fs.existsSync(prodImagesDir)) {
+              fs.mkdirSync(prodImagesDir, { recursive: true });
+            }
+            await fs.promises.writeFile(path.join(prodImagesDir, filename), buffer);
+          } catch (writeErr2) {
+            console.warn(`Could not cache recovered file ${filename} to dist/Images disk:`, writeErr2);
+          }
+        }
+
+        console.log(`Successfully recovered image ${filename} from Firestore and cached locally.`);
+        return res.contentType(backup.contentType || 'image/jpeg').send(buffer);
+      }
+    } catch (err) {
+      console.error(`Failed to recover image ${filename} from Firestore:`, err);
+    }
+
+    next();
+  });
+
+  app.use('/Images', express.static(path.join(process.cwd(), 'public/Images')));
 
   // Enriched Auth Middleware that supports Super Admin AND Database Authors
   async function checkAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -581,7 +663,7 @@ Follow these rules strictly:
   // Supports alternative routes /api/media-store and /api/save-image to bypass Hostinger / ModSecurity keyword restrictions
   app.post(['/api/upload', '/api/media-store', '/api/save-image'], adminAuth, async (req, res) => {
     try {
-      const { name, data } = req.body;
+      const { name, data, targetField } = req.body;
       if (!name || !data) {
         return res.status(400).json({ error: 'फाईल नाव आणि डेटा आवश्यक आहे.' });
       }
@@ -606,28 +688,60 @@ Follow these rules strictly:
 
       const buffer = Buffer.from(base64Data, 'base64');
 
+      const isDetailAd = targetField && typeof targetField === 'string' && targetField.startsWith('detailAd');
+
       // Create unique filename
       const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filename = `${Date.now()}-${Math.round(Math.random() * 1e5)}_${cleanName}`;
-      const filePath = path.join(uploadDir, filename);
+      
+      let filePath = '';
+      if (isDetailAd) {
+        const imagesDir = path.join(process.cwd(), 'public/Images');
+        try {
+          if (!fs.existsSync(imagesDir)) {
+            fs.mkdirSync(imagesDir, { recursive: true });
+          }
+        } catch (e) {}
+        filePath = path.join(imagesDir, filename);
+      } else {
+        filePath = path.join(uploadDir, filename);
+      }
 
       // Save to disk (try but don't fail if read-only filesystem)
       try {
         await fs.promises.writeFile(filePath, buffer);
+        if (isDetailAd) {
+          // Also save in root Images directory to keep clean copy in dev
+          const rootImagesDir = path.join(process.cwd(), 'Images');
+          try {
+            if (!fs.existsSync(rootImagesDir)) {
+              fs.mkdirSync(rootImagesDir, { recursive: true });
+            }
+            await fs.promises.writeFile(path.join(rootImagesDir, filename), buffer);
+          } catch (writeErrRoot) {}
+        }
       } catch (writeErr) {
-        console.warn(`Could not write uploaded file ${filename} to public/uploads disk (filesystem may be read-only):`, writeErr);
+        console.warn(`Could not write uploaded file ${filename} to disk (filesystem may be read-only):`, writeErr);
       }
 
-      // Also write to dist/uploads if NODE_ENV is production (optional cache)
+      // Also write to dist if NODE_ENV is production (optional cache)
       if (process.env.NODE_ENV === 'production') {
         try {
-          const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
-          if (!fs.existsSync(prodUploadDir)) {
-            fs.mkdirSync(prodUploadDir, { recursive: true });
+          if (isDetailAd) {
+            const prodImagesDir = path.join(process.cwd(), 'dist/Images');
+            if (!fs.existsSync(prodImagesDir)) {
+              fs.mkdirSync(prodImagesDir, { recursive: true });
+            }
+            await fs.promises.writeFile(path.join(prodImagesDir, filename), buffer);
+          } else {
+            const prodUploadDir = path.join(process.cwd(), 'dist/uploads');
+            if (!fs.existsSync(prodUploadDir)) {
+              fs.mkdirSync(prodUploadDir, { recursive: true });
+            }
+            await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
           }
-          await fs.promises.writeFile(path.join(prodUploadDir, filename), buffer);
         } catch (writeErr2) {
-          console.warn(`Could not write uploaded file ${filename} to dist/uploads disk:`, writeErr2);
+          console.warn(`Could not write uploaded file ${filename} to production cache disk:`, writeErr2);
         }
       }
 
@@ -793,7 +907,7 @@ Follow these rules strictly:
       }
 
       // Return Google Drive URL if uploaded successfully, otherwise local relative URL
-      const finalUrl = googleDriveUrl || `/uploads/${filename}`;
+      const finalUrl = googleDriveUrl || (isDetailAd ? `/Images/${filename}` : `/uploads/${filename}`);
       res.json({ url: finalUrl });
     } catch (err: any) {
       console.error('Upload Error:', err);
