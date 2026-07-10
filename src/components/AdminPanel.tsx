@@ -794,6 +794,8 @@ export default function AdminPanel({
   const [cropOffsetY, setCropOffsetY] = useState(50); // % percentage
   const [resizeWidth, setResizeWidth] = useState(800); // px
   const [showCropperPane, setShowCropperPane] = useState(false);
+  const [cropTargetField, setCropTargetField] = useState<'news' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' | null>(null);
+  const [cropTargetIndex, setCropTargetIndex] = useState<number | undefined>(undefined);
   
   // Custom Handler to apply crop on raw canvas
   const handleApplyCrop = () => {
@@ -846,10 +848,22 @@ export default function AdminPanel({
 
       // Convert to Base64 (JPG Base64 fits perfectly in standard News.imageURL)
       const croppedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-      setImageURL(croppedBase64);
-      setSelectedFileForCrop(null);
-      setShowCropperPane(false);
-      addToast('मुख्य प्रतिमा यशस्वीरित्या क्रॉप व आकुंचन (cropped & resized) केली गेली!', 'success');
+      
+      if (cropTargetField && cropTargetField !== 'news') {
+        const blob = base64ToBlob(croppedBase64);
+        const croppedFile = new File([blob], 'cropped_image.jpg', { type: 'image/jpeg' });
+        setSelectedFileForCrop(null);
+        setShowCropperPane(false);
+        // Upload the cropped file directly
+        handleDeviceUpload(null, cropTargetField, cropTargetIndex, croppedFile);
+      } else {
+        setImageURL(croppedBase64);
+        setSelectedFileForCrop(null);
+        setShowCropperPane(false);
+        setCropTargetField(null);
+        setCropTargetIndex(undefined);
+        addToast('मुख्य प्रतिमा यशस्वीरित्या क्रॉप व आकुंचन (cropped & resized) केली गेली!', 'success');
+      }
     };
     img.onerror = () => {
       addToast('प्रतिमा लोड करण्यात अडचण आली. कृपया वैध URL तपासा किंवा स्थानिक फाईल पुन्हा सिलेक्ट करा.', 'error');
@@ -858,9 +872,19 @@ export default function AdminPanel({
   };
 
   // Convert local uploaded file to base64 Data URL to allow offline mock files cropping instantly
-  const handleLocalFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLocalFileSelection = (e: React.ChangeEvent<HTMLInputElement>, targetField: 'news' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' = 'news', slideIndex?: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setCropTargetField(targetField);
+    setCropTargetIndex(slideIndex);
+
+    if (targetField === 'news' || targetField === 'banner' || targetField === 'slide') {
+      setCropAspectRatio('16:9');
+    } else {
+      setCropAspectRatio('free');
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target?.result) {
@@ -3413,139 +3437,6 @@ export default function AdminPanel({
                     </div>
                   )}
 
-                  {/* Canvas interactive Cropper Pane UI */}
-                  {selectedFileForCrop && showCropperPane && (
-                    <div className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 space-y-4 shadow-lg animate-fade-in">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                        <span className="text-xs font-bold text-rose-400">इमेज क्रॉप आणि कॉम्प्रेशन टूल (HTML5 Canvas Crop)</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedFileForCrop(null);
-                            setShowCropperPane(false);
-                          }}
-                          className="text-slate-400 hover:text-white text-xs font-black cursor-pointer"
-                        >
-                          बंद करा (X)
-                        </button>
-                      </div>
-
-                      {/* Canvas live Preview mock container */}
-                      <div className="flex flex-col items-center bg-slate-950 p-3 rounded-lg border border-slate-800 relative max-h-[220px] overflow-hidden justify-center shadow-inner">
-                        <img
-                          src={selectedFileForCrop}
-                          alt="Crop Source"
-                          className="max-h-[160px] max-w-full rounded object-contain opacity-85 select-none"
-                          style={{
-                            transform: `scale(${cropZoom / 100})`,
-                            translate: `${(cropOffsetX - 50) * 0.5}px ${(cropOffsetY - 50) * 0.5}px`,
-                          }}
-                        />
-                        <div className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-[10px] text-rose-300">
-                          वरील चौकटीत क्रॉप केलेल्या प्रतिमेचा रिअल-टाइम प्रभाव (Preview) दिसत आहे.
-                        </div>
-                      </div>
-
-                      {/* Controls for Crop Box & Zooming & Resize dimensions */}
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-400 block pb-0.5">आस्पेक्ट रेशो (Aspect Ratio)</label>
-                            <div className="grid grid-cols-4 gap-1">
-                              {(['16:9', '4:3', '1:1', 'free'] as const).map(ratio => (
-                                <button
-                                  key={ratio}
-                                  type="button"
-                                  onClick={() => setCropAspectRatio(ratio)}
-                                  className={`text-[9px] py-1 font-bold rounded cursor-pointer transition ${
-                                    cropAspectRatio === ratio ? 'bg-rose-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                                  }`}
-                                >
-                                  {ratio}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-400 block pb-0.5">आकार विड्थ (Resolution Width px)</label>
-                            <div className="grid grid-cols-3 gap-1">
-                              {([600, 800, 1200] as const).map(w => (
-                                <button
-                                  key={w}
-                                  type="button"
-                                  onClick={() => setResizeWidth(w)}
-                                  className={`text-[9px] py-1 font-bold rounded cursor-pointer transition ${
-                                    resizeWidth === w ? 'bg-rose-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                                  }`}
-                                >
-                                  {w}px
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Interactive Sliders */}
-                        <div className="space-y-1.5 bg-slate-950 p-3 rounded-lg border border-slate-800">
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-slate-400">१. झूम गुणवत्ता (Scale Zoom) :</span>
-                            <span className="text-rose-400 font-bold">{cropZoom}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="50"
-                            max="300"
-                            value={cropZoom}
-                            onChange={(e) => setCropZoom(parseInt(e.target.value))}
-                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                          />
-
-                          <div className="grid grid-cols-2 gap-4 pt-1">
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-slate-400">२. आडवा शिफ्ट (Offset-X) :</span>
-                                <span className="text-rose-400 font-bold">{cropOffsetX}%</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={cropOffsetX}
-                                onChange={(e) => setCropOffsetX(parseInt(e.target.value))}
-                                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-slate-400">३. उभा शिफ्ट (Offset-Y) :</span>
-                                <span className="text-rose-400 font-bold">{cropOffsetY}%</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={cropOffsetY}
-                                onChange={(e) => setCropOffsetY(parseInt(e.target.value))}
-                                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex space-x-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={handleApplyCrop}
-                            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs py-2 px-3 rounded-lg transition cursor-pointer"
-                          >
-                            क्रॉप व रिसाईझ रिझल्ट लागू करा
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <p className="text-[10px] text-slate-400">बातमीचे मुख्य कव्हर चित्र जोडण्यासाठी वैध URL पेस्ट करा किंवा स्थानिक चित्र क्रॉप करण्यासाठी <b>"अपलोड व क्रॉप"</b> सिलेक्ट करा.</p>
                 </div>
 
@@ -3917,7 +3808,7 @@ export default function AdminPanel({
                   <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
                     <span>चित्रात्मक लोगो लिंक (Custom Logo URL - पर्यायी)</span>
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2">
                     <input
                       type="text"
                       placeholder="https://example.com/logo.png"
@@ -3926,7 +3817,7 @@ export default function AdminPanel({
                       onBlur={() => { autoSaveBranding(); addActivityLog('चित्रात्मक लोगोची लिंक सुधारित केली.'); }}
                       className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                     />
-                    <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
+                    <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
                       <input
                         type="file"
                         accept="image/*"
@@ -3935,7 +3826,18 @@ export default function AdminPanel({
                         disabled={isUploading === 'logo'}
                       />
                       <Crop className="h-3.5 w-3.5" />
-                      <span>{isUploading === 'logo' ? 'अपलोड होत आहे...' : 'निवडा व क्रॉप करा'}</span>
+                      <span>अपलोड व क्रॉप</span>
+                    </label>
+                    <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleDeviceUpload(e, 'logo')}
+                        disabled={isUploading === 'logo'}
+                      />
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>{isUploading === 'logo' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                     </label>
                   </div>
                   <p className="text-[10px] text-slate-400">चित्र उपलब्ध केल्यास आयकन ऐवजी थेट तुमचा स्वतःचा लोगो दर्शवला जाईल.</p>
@@ -4108,7 +4010,7 @@ export default function AdminPanel({
                         <span>जाहिरात बॅनरचे चित्र (Banner Image URL)</span>
                         <span className="bg-rose-150 text-rose-700 font-extrabold px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wide border border-rose-200">1290 × 720 (16:9)</span>
                       </label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap sm:flex-nowrap gap-2">
                         <input
                           type="text"
                           placeholder="https://images.unsplash.com/... किंवा तुमच्या जाहिरातीचा इमेज पाथ"
@@ -4117,7 +4019,17 @@ export default function AdminPanel({
                           onBlur={() => { autoSaveBranding(); addActivityLog('मुख्य जाहिरात बॅनरचे चित्र बदलले.'); }}
                           className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                         />
-                        <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
+                        <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleLocalFileSelection(e, 'banner')}
+                          />
+                          <Crop className="h-3.5 w-3.5" />
+                          <span>अपलोड व क्रॉप</span>
+                        </label>
+                        <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
                           <input
                             type="file"
                             accept="image/*"
@@ -4126,7 +4038,7 @@ export default function AdminPanel({
                             disabled={isUploading === 'banner'}
                           />
                           <Upload className="h-3.5 w-3.5" />
-                          <span>{isUploading === 'banner' ? 'अपलोड होत आहे...' : 'डिव्हाइसमधून निवडा'}</span>
+                          <span>{isUploading === 'banner' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                         </label>
                       </div>
                     </div>
@@ -4260,7 +4172,7 @@ export default function AdminPanel({
                           <span>जाहिरात चित्र लिंक (Ad Image URL)</span>
                           <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">1290 × 720 (16:9)</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <input
                             type="text"
                             placeholder="https://images.unsplash.com/... किंवा अपलोड करा"
@@ -4269,6 +4181,16 @@ export default function AdminPanel({
                             onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. १ चे चित्र बदलले.'); }}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                           />
+                          <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleLocalFileSelection(e, 'detailAd1')}
+                            />
+                            <Crop className="h-3 w-3" />
+                            <span>अपलोड व क्रॉप</span>
+                          </label>
                           <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
                             <input
                               type="file"
@@ -4278,7 +4200,7 @@ export default function AdminPanel({
                               disabled={isUploading === 'detailAd1'}
                             />
                             <Upload className="h-3 w-3" />
-                            <span>{isUploading === 'detailAd1' ? 'अपलोड...' : 'अपलोड'}</span>
+                            <span>{isUploading === 'detailAd1' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                           </label>
                         </div>
                       </div>
@@ -4338,7 +4260,7 @@ export default function AdminPanel({
                           <span>जाहिरात चित्र लिंक (Ad Image URL)</span>
                           <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">1290 × 720 (16:9)</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <input
                             type="text"
                             placeholder="https://images.unsplash.com/... किंवा अपलोड करा"
@@ -4347,6 +4269,16 @@ export default function AdminPanel({
                             onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. २ चे चित्र बदलले.'); }}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                           />
+                          <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleLocalFileSelection(e, 'detailAd2')}
+                            />
+                            <Crop className="h-3 w-3" />
+                            <span>अपलोड व क्रॉप</span>
+                          </label>
                           <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
                             <input
                               type="file"
@@ -4356,7 +4288,7 @@ export default function AdminPanel({
                               disabled={isUploading === 'detailAd2'}
                             />
                             <Upload className="h-3 w-3" />
-                            <span>{isUploading === 'detailAd2' ? 'अपलोड...' : 'अपलोड'}</span>
+                            <span>{isUploading === 'detailAd2' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                           </label>
                         </div>
                       </div>
@@ -4416,7 +4348,7 @@ export default function AdminPanel({
                           <span>जाहिरात चित्र लिंक (Ad Image URL)</span>
                           <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">1290 × 720 (16:9)</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <input
                             type="text"
                             placeholder="https://images.unsplash.com/... किंवा अपलोड करा"
@@ -4425,6 +4357,16 @@ export default function AdminPanel({
                             onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ३ चे चित्र बदलले.'); }}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                           />
+                          <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleLocalFileSelection(e, 'detailAd3')}
+                            />
+                            <Crop className="h-3 w-3" />
+                            <span>अपलोड व क्रॉप</span>
+                          </label>
                           <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
                             <input
                               type="file"
@@ -4434,7 +4376,7 @@ export default function AdminPanel({
                               disabled={isUploading === 'detailAd3'}
                             />
                             <Upload className="h-3 w-3" />
-                            <span>{isUploading === 'detailAd3' ? 'अपलोड...' : 'अपलोड'}</span>
+                            <span>{isUploading === 'detailAd3' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                           </label>
                         </div>
                       </div>
@@ -4494,7 +4436,7 @@ export default function AdminPanel({
                           <span>जाहिरात चित्र लिंक (Ad Image URL)</span>
                           <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">1290 × 720 (16:9)</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <input
                             type="text"
                             placeholder="https://images.unsplash.com/... किंवा अपलोड करा"
@@ -4503,6 +4445,16 @@ export default function AdminPanel({
                             onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ४ चे चित्र बदलले.'); }}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                           />
+                          <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleLocalFileSelection(e, 'detailAd4')}
+                            />
+                            <Crop className="h-3 w-3" />
+                            <span>अपलोड व क्रॉप</span>
+                          </label>
                           <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
                             <input
                               type="file"
@@ -4512,7 +4464,7 @@ export default function AdminPanel({
                               disabled={isUploading === 'detailAd4'}
                             />
                             <Upload className="h-3 w-3" />
-                            <span>{isUploading === 'detailAd4' ? 'अपलोड...' : 'अपलोड'}</span>
+                            <span>{isUploading === 'detailAd4' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                           </label>
                         </div>
                       </div>
@@ -4742,7 +4694,7 @@ export default function AdminPanel({
                             <div className="pt-2.5 border-t border-slate-100/80 space-y-2 text-[11px]">
                               <div className="space-y-1">
                                 <span className="text-slate-500 font-bold block">चित्र (Image URL या डिव्हाइसमधून अपलोड):</span>
-                                <div className="flex gap-1.5">
+                                <div className="flex flex-wrap sm:flex-nowrap gap-1.5">
                                   <input
                                     type="text"
                                     value={slide.imageUrl}
@@ -4754,6 +4706,16 @@ export default function AdminPanel({
                                     className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-sans"
                                     placeholder="इमेज URL"
                                   />
+                                  <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => handleLocalFileSelection(e, 'slide', idx)}
+                                    />
+                                    <Crop className="h-3 w-3" />
+                                    <span>अपलोड व क्रॉप</span>
+                                  </label>
                                   <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 select-none">
                                     <input
                                       type="file"
@@ -4763,7 +4725,7 @@ export default function AdminPanel({
                                       disabled={isUploading === `slide-${idx}`}
                                     />
                                     <Upload className="h-3 w-3" />
-                                    <span>{isUploading === `slide-${idx}` ? 'अपलोड...' : 'अपलोड'}</span>
+                                    <span>{isUploading === `slide-${idx}` ? 'अपलोड...' : 'थेट अपलोड'}</span>
                                   </label>
                                   <button
                                     type="button"
@@ -4829,7 +4791,7 @@ export default function AdminPanel({
                           <span>जाहिरात चित्र पत्ता (Image URL) <span className="text-rose-500">*</span></span>
                           <span className="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded-xs text-[9px] uppercase tracking-wider">1290 × 720 (16:9)</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <input
                             type="text"
                             placeholder="उदा. https://images.unsplash.com/photo-..."
@@ -4837,6 +4799,16 @@ export default function AdminPanel({
                             onChange={(e) => setNewSlideImgUrl(e.target.value)}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                           />
+                          <label className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 self-stretch">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleLocalFileSelection(e, 'slide')}
+                            />
+                            <Crop className="h-3 w-3" />
+                            <span>अपलोड व क्रॉप</span>
+                          </label>
                           <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1 self-stretch">
                             <input
                               type="file"
@@ -4846,7 +4818,7 @@ export default function AdminPanel({
                               disabled={isUploading === 'slide'}
                             />
                             <Upload className="h-3 w-3" />
-                            <span>{isUploading === 'slide' ? 'अपलोड...' : 'अपलोड'}</span>
+                            <span>{isUploading === 'slide' ? 'अपलोड...' : 'थेट अपलोड'}</span>
                           </label>
                           <button
                             type="button"
@@ -5785,6 +5757,171 @@ export default function AdminPanel({
                 className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shadow-lg shadow-rose-600/20"
               >
                 नक्की करा
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic HTML5 Canvas Cropper Modal for settings/branding */}
+      {selectedFileForCrop && showCropperPane && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]" style={{ margin: 0 }}>
+          <div className="bg-slate-900 text-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <div className="flex items-center space-x-2">
+                <div className="bg-rose-950 text-rose-400 p-2 rounded-lg animate-pulse">
+                  <Crop className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white font-sans">इमेज क्रॉप आणि रिसाईझ करा</h3>
+                  <p className="text-[11px] text-slate-400 font-sans">झूम, गुणोत्तर आणि ऑफसेट टूल्स वापरून इमेज अचूक सेट करा.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setSelectedFileForCrop(null);
+                  setShowCropperPane(false);
+                  setCropTargetField(null);
+                  setCropTargetIndex(undefined);
+                }}
+                className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 flex flex-col space-y-4 overflow-y-auto bg-slate-950/20">
+              {/* Live Preview Container */}
+              <div className="flex flex-col items-center bg-slate-950 p-3 rounded-xl border border-slate-800/80 relative min-h-[180px] max-h-[220px] overflow-hidden justify-center shadow-inner">
+                <img
+                  src={selectedFileForCrop}
+                  alt="Crop Source"
+                  className="max-h-[160px] max-w-full rounded object-contain opacity-85 select-none"
+                  style={{
+                    transform: `scale(${cropZoom / 100})`,
+                    translate: `${(cropOffsetX - 50) * 0.5}px ${(cropOffsetY - 50) * 0.5}px`,
+                  }}
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-[10px] text-rose-300 font-sans">
+                  इमेजचा रिअल-टाइम प्रभाव (Live Preview)
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 block pb-0.5 font-sans">आस्पेक्ट रेशो (Aspect Ratio)</label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(['16:9', '4:3', '1:1', 'free'] as const).map(ratio => (
+                        <button
+                          key={ratio}
+                          type="button"
+                          onClick={() => setCropAspectRatio(ratio)}
+                          className={`text-[9px] py-1 font-bold rounded cursor-pointer transition ${
+                            cropAspectRatio === ratio ? 'bg-rose-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {ratio}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 block pb-0.5 font-sans">आकार विड्थ (Resolution Width px)</label>
+                    <div className="grid grid-cols-3 gap-1">
+                      {([600, 800, 1200] as const).map(w => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setResizeWidth(w)}
+                          className={`text-[9px] py-1 font-bold rounded cursor-pointer transition ${
+                            resizeWidth === w ? 'bg-rose-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {w}px
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sliders */}
+                <div className="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 font-sans">१. झूम गुणवत्ता (Scale Zoom) :</span>
+                      <span className="text-rose-400 font-bold font-sans">{cropZoom}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="300"
+                      value={cropZoom}
+                      onChange={(e) => setCropZoom(parseInt(e.target.value))}
+                      className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400 font-sans">२. आडवा शिफ्ट (Offset-X) :</span>
+                        <span className="text-rose-400 font-bold font-sans">{cropOffsetX}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={cropOffsetX}
+                        onChange={(e) => setCropOffsetX(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400 font-sans">३. उभा शिफ्ट (Offset-Y) :</span>
+                        <span className="text-rose-400 font-bold font-sans">{cropOffsetY}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={cropOffsetY}
+                        onChange={(e) => setCropOffsetY(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex space-x-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFileForCrop(null);
+                  setShowCropperPane(false);
+                  setCropTargetField(null);
+                  setCropTargetIndex(undefined);
+                }}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer font-sans"
+              >
+                रद्द करा
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyCrop}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 font-sans"
+              >
+                <Check className="h-4 w-4" />
+                <span>क्रॉप व रिसाईझ रिझल्ट लागू करा</span>
               </button>
             </div>
           </div>
