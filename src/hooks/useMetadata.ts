@@ -46,7 +46,7 @@ export function useMetadata(activeArticle: News | null, siteSettings: SiteCustom
       const logoUrl = siteSettings.channelLogoUrl ? resolveDriveUrl(siteSettings.channelLogoUrl) : '';
       const footerAbout = siteSettings.footerAbout || 'महाराष्ट्राचे हक्ताचे व्यासपीठ';
 
-      document.title = `${siteName} - ${tagline}`;
+      document.title = siteName;
 
       updateMetaTag('name', 'description', footerAbout);
       updateMetaTag('name', 'keywords', 'अहिल्यानगर न्यूज नेटवर्क, महाराष्ट्र न्यूज, मराठी बातम्या, ताज्या घडामोडी');

@@ -404,6 +404,58 @@ Follow these rules strictly:
     }
   });
 
+  // Image proxy to convert Google Drive URLs to direct raw image streams (crucial for WhatsApp/crawler previews)
+  app.get('/api/image-proxy', async (req, res) => {
+    try {
+      const urlParam = req.query.url as string;
+      if (!urlParam) {
+        return res.status(400).send('No image URL specified.');
+      }
+
+      const trimmed = urlParam.trim();
+      let targetUrl = trimmed;
+
+      // Extract Google Drive ID if it's a Drive link
+      const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      const ucMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const id = (fileDMatch && fileDMatch[1]) || (ucMatch && ucMatch[1]);
+
+      if (id) {
+        // Fetch raw file content using direct download API
+        targetUrl = `https://docs.google.com/uc?export=download&id=${id}`;
+      }
+
+      const response = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image from remote source, status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      return res.send(buffer);
+    } catch (err: any) {
+      console.error('Image proxy error:', err);
+      // Fallback to a default unsplash image
+      try {
+        const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+        const arrayBuffer = await fallbackRes.arrayBuffer();
+        res.setHeader('Content-Type', 'image/jpeg');
+        return res.send(Buffer.from(arrayBuffer));
+      } catch (fbErr) {
+        return res.status(500).send('Failed to serve image');
+      }
+    }
+  });
+
   // 1. GET /api/news -> get all news (latest first) or filter by category/search
   app.get('/api/news', async (req, res) => {
     try {
@@ -1657,9 +1709,15 @@ Follow these rules strictly:
 
       // Fetch site settings for fallback/default values
       const settings = await db.getSettings();
-      const defaultTitle = settings.channelName || 'माझापत्र - मराठी न्यूज पोर्टल';
+      const defaultTitle = (settings.channelName && settings.channelName !== 'माझापत्र')
+        ? settings.channelName
+        : 'अहिल्यानगर न्यूज नेटवर्क';
       const defaultDesc = settings.channelTagline || 'माझा महाराष्ट्र, माझे पत्र';
-      let imageUrl = settings.channelLogoUrl || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
+      
+      let imageUrl = settings.channelLogoUrl;
+      if (!imageUrl || imageUrl === '/logo.jpg' || imageUrl === '/Images/logo.jpg' || imageUrl.includes('unsplash.com')) {
+        imageUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
+      }
 
       let title = defaultTitle;
       let description = defaultDesc;
@@ -1674,16 +1732,18 @@ Follow these rules strictly:
         }
       }
 
-      // Convert Google Drive urls to direct static image link so crawlers can load them instantly
-      imageUrl = resolveDriveUrl(imageUrl);
-
-      // Ensure imageUrl is absolute
+      // Ensure imageUrl is absolute and properly proxied if Google Drive to avoid user-agent/crawler issues
       const host = req.get('host') || 'majhapatra.com';
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
       const absoluteUrl = `${protocol}://${host}${req.originalUrl}`;
 
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
-        imageUrl = `${protocol}://${host}${imageUrl}`;
+      if (imageUrl && (imageUrl.includes('drive.google.com') || imageUrl.includes('docs.google.com') || imageUrl.includes('lh3.googleusercontent.com'))) {
+        imageUrl = `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+      } else {
+        imageUrl = resolveDriveUrl(imageUrl);
+        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
+          imageUrl = `${protocol}://${host}${imageUrl}`;
+        }
       }
 
       // Build target open graph and meta tag strings
@@ -1703,7 +1763,10 @@ Follow these rules strictly:
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:image" content="${escapeHtml(imageUrl)}" />
-    <meta property="og:site_name" content="${escapeHtml(settings.channelName || 'माझापत्र')}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:site_name" content="${escapeHtml(defaultTitle)}" />
 
     <!-- Twitter / X Cards -->
     <meta name="twitter:card" content="summary_large_image" />
