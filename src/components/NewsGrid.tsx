@@ -17,6 +17,7 @@ interface NewsGridProps {
   authUser?: AuthUser | null;
   addToast?: (message: string, type: 'success' | 'error' | 'info') => void;
   isLoading?: boolean;
+  categories?: { label: string; value: CategoryType }[];
 }
 
 export default function NewsGrid({
@@ -31,6 +32,7 @@ export default function NewsGrid({
   authUser,
   addToast,
   isLoading,
+  categories,
 }: NewsGridProps) {
   
   // Filter news based on category and search query

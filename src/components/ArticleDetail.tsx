@@ -38,7 +38,7 @@ import {
   Heart,
   MessageCircle
 } from 'lucide-react';
-import { News, SiteCustomization, AuthUser } from '../types';
+import { News, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 import AuthorProfile from './AuthorProfile';
 
 interface ArticleDetailProps {
@@ -728,7 +728,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
                 className="block rounded-xl overflow-hidden cursor-pointer"
               >
                 <img 
-                  src={siteSettings.detailAd2ImageUrl} 
+                  src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
                   alt="जाहिरात" 
                   className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
                   onError={(e) => {
@@ -757,7 +757,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
               className="block rounded-xl overflow-hidden cursor-pointer"
             >
               <img 
-                src={siteSettings.detailAd2ImageUrl} 
+                src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
                 alt="जाहिरात" 
                 className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
                 onError={(e) => {
@@ -803,7 +803,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
                 className="block rounded-xl overflow-hidden cursor-pointer"
               >
                 <img 
-                  src={siteSettings.detailAd2ImageUrl} 
+                  src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
                   alt="जाहिरात" 
                   className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
                   onError={(e) => {
@@ -832,7 +832,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
               className="block rounded-xl overflow-hidden cursor-pointer"
             >
               <img 
-                src={siteSettings.detailAd2ImageUrl} 
+                src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
                 alt="जाहिरात" 
                 className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
                 onError={(e) => {
@@ -1137,7 +1137,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             className="block rounded-xl overflow-hidden cursor-pointer"
           >
             <img 
-              src={siteSettings.detailAd1ImageUrl} 
+              src={resolveDriveUrl(siteSettings.detailAd1ImageUrl || '')} 
               alt="जाहिरात" 
               className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
               onError={(e) => {
@@ -1475,7 +1475,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
                 className="block rounded-xl overflow-hidden cursor-pointer"
               >
                 <img 
-                  src={siteSettings.detailAd3ImageUrl} 
+                  src={resolveDriveUrl(siteSettings.detailAd3ImageUrl || '')} 
                   alt="जाहिरात" 
                   className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
                   onError={(e) => {
@@ -1503,7 +1503,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             className="block rounded-xl overflow-hidden cursor-pointer"
           >
             <img 
-              src={siteSettings.detailAd4ImageUrl} 
+              src={resolveDriveUrl(siteSettings.detailAd4ImageUrl || '')} 
               alt="जाहिरात" 
               className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
               onError={(e) => {

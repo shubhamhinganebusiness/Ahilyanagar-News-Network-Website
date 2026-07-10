@@ -5,7 +5,7 @@ import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage 
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X } from 'lucide-react';
-import { News, CategoryType, SiteCustomization, BrandAdSlide } from '../types';
+import { News, CategoryType, SiteCustomization, BrandAdSlide, resolveDriveUrl } from '../types';
 import { getYouTubeId } from './LiveTvSection';
 import RichTextEditor from './RichTextEditor';
 import RansomNoteGenerator from './RansomNoteGenerator';
@@ -525,19 +525,19 @@ export default function AdminPanel({
 
   // Detailed Reading Page Advertisements (4 Ads) States
   const [detailAd1Enabled, setDetailAd1Enabled] = useState<boolean>(() => siteSettings?.detailAd1Enabled !== false);
-  const [detailAd1ImageUrl, setDetailAd1ImageUrl] = useState<string>(() => siteSettings?.detailAd1ImageUrl || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80');
+  const [detailAd1ImageUrl, setDetailAd1ImageUrl] = useState<string>(() => siteSettings?.detailAd1ImageUrl || 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link');
   const [detailAd1Link, setDetailAd1Link] = useState<string>(() => siteSettings?.detailAd1Link || '#');
 
   const [detailAd2Enabled, setDetailAd2Enabled] = useState<boolean>(() => siteSettings?.detailAd2Enabled !== false);
-  const [detailAd2ImageUrl, setDetailAd2ImageUrl] = useState<string>(() => siteSettings?.detailAd2ImageUrl || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80');
+  const [detailAd2ImageUrl, setDetailAd2ImageUrl] = useState<string>(() => siteSettings?.detailAd2ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
   const [detailAd2Link, setDetailAd2Link] = useState<string>(() => siteSettings?.detailAd2Link || '#');
 
   const [detailAd3Enabled, setDetailAd3Enabled] = useState<boolean>(() => siteSettings?.detailAd3Enabled !== false);
-  const [detailAd3ImageUrl, setDetailAd3ImageUrl] = useState<string>(() => siteSettings?.detailAd3ImageUrl || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');
+  const [detailAd3ImageUrl, setDetailAd3ImageUrl] = useState<string>(() => siteSettings?.detailAd3ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
   const [detailAd3Link, setDetailAd3Link] = useState<string>(() => siteSettings?.detailAd3Link || '#');
 
   const [detailAd4Enabled, setDetailAd4Enabled] = useState<boolean>(() => siteSettings?.detailAd4Enabled !== false);
-  const [detailAd4ImageUrl, setDetailAd4ImageUrl] = useState<string>(() => siteSettings?.detailAd4ImageUrl || 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80');
+  const [detailAd4ImageUrl, setDetailAd4ImageUrl] = useState<string>(() => siteSettings?.detailAd4ImageUrl || 'https://drive.google.com/file/d/1_OwWqIM9eTKQH1XffOBlSpL6WWZv_fW-/view?usp=drive_link');
   const [detailAd4Link, setDetailAd4Link] = useState<string>(() => siteSettings?.detailAd4Link || '#');
 
   // Brand advertisement slider state variables
@@ -1283,19 +1283,19 @@ export default function AdminPanel({
 
       // Detailed Reading Page Advertisements synchronization
       setDetailAd1Enabled(siteSettings.detailAd1Enabled !== false);
-      setDetailAd1ImageUrl(siteSettings.detailAd1ImageUrl || '/Images/ads1.png');
+      setDetailAd1ImageUrl(siteSettings.detailAd1ImageUrl || 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link');
       setDetailAd1Link(siteSettings.detailAd1Link || '#');
 
       setDetailAd2Enabled(siteSettings.detailAd2Enabled !== false);
-      setDetailAd2ImageUrl(siteSettings.detailAd2ImageUrl || '/Images/ads2.png');
+      setDetailAd2ImageUrl(siteSettings.detailAd2ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
       setDetailAd2Link(siteSettings.detailAd2Link || '#');
 
       setDetailAd3Enabled(siteSettings.detailAd3Enabled !== false);
-      setDetailAd3ImageUrl(siteSettings.detailAd3ImageUrl || '/Images/ads3.png');
+      setDetailAd3ImageUrl(siteSettings.detailAd3ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
       setDetailAd3Link(siteSettings.detailAd3Link || '#');
 
       setDetailAd4Enabled(siteSettings.detailAd4Enabled !== false);
-      setDetailAd4ImageUrl(siteSettings.detailAd4ImageUrl || '/Images/ads4.png');
+      setDetailAd4ImageUrl(siteSettings.detailAd4ImageUrl || 'https://drive.google.com/file/d/1_OwWqIM9eTKQH1XffOBlSpL6WWZv_fW-/view?usp=drive_link');
       setDetailAd4Link(siteSettings.detailAd4Link || '#');
 
       setBrandAdsEnabled(siteSettings.brandAdsEnabled !== false);
@@ -4219,7 +4219,7 @@ export default function AdminPanel({
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
                           <img 
-                            src={detailAd1ImageUrl} 
+                            src={resolveDriveUrl(detailAd1ImageUrl)} 
                             alt="Ad 1 preview" 
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 aspect-[1290/720]"
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80'; }}
@@ -4307,7 +4307,7 @@ export default function AdminPanel({
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
                           <img 
-                            src={detailAd2ImageUrl} 
+                            src={resolveDriveUrl(detailAd2ImageUrl)} 
                             alt="Ad 2 preview" 
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 aspect-[1290/720]"
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80'; }}
@@ -4395,7 +4395,7 @@ export default function AdminPanel({
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
                           <img 
-                            src={detailAd3ImageUrl} 
+                            src={resolveDriveUrl(detailAd3ImageUrl)} 
                             alt="Ad 3 preview" 
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 aspect-[1290/720]"
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80'; }}
@@ -4483,7 +4483,7 @@ export default function AdminPanel({
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
                           <img 
-                            src={detailAd4ImageUrl} 
+                            src={resolveDriveUrl(detailAd4ImageUrl)} 
                             alt="Ad 4 preview" 
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 aspect-[1290/720]"
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80'; }}

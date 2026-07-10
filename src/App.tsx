@@ -207,16 +207,16 @@ export default function App() {
       adBannerBgColor: '#e11d48',
       liveTvUrl: 'https://www.youtube.com/watch?v=yW6I1y8Jt4w',
       detailAd1Enabled: true,
-      detailAd1ImageUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80',
+      detailAd1ImageUrl: 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link',
       detailAd1Link: '#',
       detailAd2Enabled: true,
-      detailAd2ImageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+      detailAd2ImageUrl: 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link',
       detailAd2Link: '#',
       detailAd3Enabled: true,
-      detailAd3ImageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+      detailAd3ImageUrl: 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link',
       detailAd3Link: '#',
       detailAd4Enabled: true,
-      detailAd4ImageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80',
+      detailAd4ImageUrl: 'https://drive.google.com/file/d/1_OwWqIM9eTKQH1XffOBlSpL6WWZv_fW-/view?usp=drive_link',
       detailAd4Link: '#',
       brandAdsEnabled: true,
       brandAdsSlides: [
@@ -517,6 +517,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Compute dynamic categories based on default core ones and the ones present in news articles
+  const defaultCategories = ['सर्व', 'राजकीय', 'राष्ट्रीय', 'राज्य', 'शहर', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
+  const activeCategories = newsList
+    .map((item) => item.category)
+    .filter((cat): cat is string => typeof cat === 'string' && cat.trim() !== '');
+  const uniqueCategories = Array.from(new Set([...defaultCategories, ...activeCategories]));
+  const categoriesList = uniqueCategories.map((cat) => ({
+    label: cat === 'सर्व' ? 'सर्व बातम्या' : cat,
+    value: cat,
+  }));
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans">
       <div>
@@ -543,6 +554,7 @@ export default function App() {
           onLogout={handleLogout}
           onOpenTroubleshooter={() => setShowAuthTroubleshooter(true)}
           addToast={addToast}
+          categories={categoriesList}
         />
 
         {/* Breaking News Ticker */}
@@ -636,6 +648,7 @@ export default function App() {
                 authUser={authUser}
                 addToast={addToast}
                 isLoading={isLoading}
+                categories={categoriesList}
               />
             </>
           )}

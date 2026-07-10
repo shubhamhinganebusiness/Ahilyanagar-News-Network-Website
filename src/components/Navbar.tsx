@@ -28,6 +28,7 @@ interface NavbarProps {
   onLogout: () => void;
   onOpenTroubleshooter?: () => void;
   addToast?: (message: string, type: 'success' | 'error' | 'info') => void;
+  categories?: { label: string; value: CategoryType }[];
 }
 
 export default function Navbar({
@@ -46,6 +47,7 @@ export default function Navbar({
   onLogout,
   onOpenTroubleshooter,
   addToast,
+  categories: dynamicCategories,
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchBox, setShowSearchBox] = useState(false);
@@ -167,7 +169,7 @@ export default function Navbar({
   }, []);
 
   // Categories in Marathi
-  const categories: { label: string; value: CategoryType }[] = [
+  const categories: { label: string; value: CategoryType }[] = dynamicCategories || [
     { label: 'सर्व बातम्या', value: 'सर्व' },
     { label: 'राष्ट्रीय', value: 'राष्ट्रीय' },
     { label: 'राज्य', value: 'राज्य' },

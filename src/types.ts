@@ -2,7 +2,7 @@ export interface News {
   _id: string;
   title: string;
   slug: string;
-  category: 'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था';
+  category: string;
   description: string;
   content: string;
   imageURL: string;
@@ -25,7 +25,7 @@ export interface AuthorAccount {
   createdAt?: string;
 }
 
-export type CategoryType = 'सर्व' | 'राष्ट्रीय' | 'राज्य' | 'शहर' | 'क्रीडा' | 'मनोरंजन' | 'अर्थव्यवस्था';
+export type CategoryType = string;
 
 export interface BrandAdSlide {
   id: string;
@@ -189,4 +189,19 @@ export interface SystemLog {
   userEmail: string;
   timestamp: string;
 }
+
+export function resolveDriveUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${fileDMatch[1]}`;
+  }
+  const ucMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (ucMatch && ucMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${ucMatch[1]}`;
+  }
+  return trimmed;
+}
+
 
