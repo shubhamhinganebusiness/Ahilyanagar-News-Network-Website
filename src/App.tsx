@@ -192,7 +192,7 @@ export default function App() {
       channelLogoText: 'माझा',
       channelLogoAccentText: 'अहिल्यानगर न्यूज नेटवर्क',
       channelTagline: 'माझा महाराष्ट्र, माझे पत्र',
-      channelLogoUrl: '/Images/logo.jpg',
+      channelLogoUrl: 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link',
       footerAbout: 'अहिल्यानगर न्यूज नेटवर्क हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.',
       footerAddress: 'अहिल्यानगर न्यूज नेटवर्क, महाराष्ट्र, भारत.',
       footerPhone: '+९१ ९४२३२३४१९३',
@@ -249,8 +249,8 @@ export default function App() {
       console.error('Error recovering local customization settings:', e);
     }
 
-    if (!result.channelLogoUrl || result.channelLogoUrl.includes('magnific.com') || result.channelLogoUrl === '/logo.jpg') {
-      result.channelLogoUrl = '/Images/logo.jpg';
+    if (!result.channelLogoUrl || result.channelLogoUrl.includes('magnific.com') || result.channelLogoUrl === '/logo.jpg' || result.channelLogoUrl === '/Images/logo.jpg') {
+      result.channelLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
     }
     return result;
   };
@@ -364,8 +364,8 @@ export default function App() {
           if (data && typeof data === 'object') {
             setSiteSettings((prev) => {
               const merged = { ...prev, ...data };
-              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
-                merged.channelLogoUrl = '/Images/logo.jpg';
+              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg' || merged.channelLogoUrl === '/Images/logo.jpg') {
+                merged.channelLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
               }
               try {
                 localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));
@@ -402,8 +402,8 @@ export default function App() {
           if (data && typeof data === 'object') {
             setSiteSettings((prev) => {
               const merged = { ...prev, ...data };
-              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
-                merged.channelLogoUrl = '/Images/logo.jpg';
+              if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg' || merged.channelLogoUrl === '/Images/logo.jpg') {
+                merged.channelLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
               }
               try {
                 localStorage.setItem('majhapatra_siteCustomization', JSON.stringify(merged));

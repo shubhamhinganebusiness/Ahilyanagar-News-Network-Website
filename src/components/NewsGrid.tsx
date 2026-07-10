@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, User, Eye, ArrowRight, LayoutGrid, AlertCircle, Sun, Sprout, CloudRain, CloudLightning, Coffee, Umbrella, Sparkles, Heart, BarChart3, CheckCircle2 } from 'lucide-react';
-import { News, CategoryType, SiteCustomization, Poll, AuthUser } from '../types';
+import { News, CategoryType, SiteCustomization, Poll, AuthUser, resolveDriveUrl } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import BrandAdsSlider from './BrandAdsSlider';
 import PollComponent from './PollComponent';
@@ -355,7 +355,7 @@ export default function NewsGrid({
             {/* Featured Image */}
             <div className="lg:col-span-7 h-64 sm:h-96 overflow-hidden relative">
               <img
-                src={featuredArticle.imageURL}
+                src={resolveDriveUrl(featuredArticle.imageURL)}
                 alt={featuredArticle.title}
                 className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
                 loading="lazy"
@@ -469,7 +469,7 @@ export default function NewsGrid({
               {/* Cover Image */}
               <div className="h-48 overflow-hidden relative bg-slate-100 shrink-0">
                 <img
-                  src={item.imageURL}
+                  src={resolveDriveUrl(item.imageURL)}
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                   loading="lazy"

@@ -70,15 +70,23 @@ export interface SiteCustomization {
   detailAd1Enabled?: boolean;
   detailAd1ImageUrl?: string;
   detailAd1Link?: string;
+  detailAd1Whatsapp?: string;
+  detailAd1Phone?: string;
   detailAd2Enabled?: boolean;
   detailAd2ImageUrl?: string;
   detailAd2Link?: string;
+  detailAd2Whatsapp?: string;
+  detailAd2Phone?: string;
   detailAd3Enabled?: boolean;
   detailAd3ImageUrl?: string;
   detailAd3Link?: string;
+  detailAd3Whatsapp?: string;
+  detailAd3Phone?: string;
   detailAd4Enabled?: boolean;
   detailAd4ImageUrl?: string;
   detailAd4Link?: string;
+  detailAd4Whatsapp?: string;
+  detailAd4Phone?: string;
   // Brand Ads Slider Customization
   brandAdsEnabled?: boolean;
   brandAdsSlides?: BrandAdSlide[];

@@ -527,18 +527,26 @@ export default function AdminPanel({
   const [detailAd1Enabled, setDetailAd1Enabled] = useState<boolean>(() => siteSettings?.detailAd1Enabled !== false);
   const [detailAd1ImageUrl, setDetailAd1ImageUrl] = useState<string>(() => siteSettings?.detailAd1ImageUrl || 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link');
   const [detailAd1Link, setDetailAd1Link] = useState<string>(() => siteSettings?.detailAd1Link || '#');
+  const [detailAd1Whatsapp, setDetailAd1Whatsapp] = useState<string>(() => siteSettings?.detailAd1Whatsapp || '');
+  const [detailAd1Phone, setDetailAd1Phone] = useState<string>(() => siteSettings?.detailAd1Phone || '');
 
   const [detailAd2Enabled, setDetailAd2Enabled] = useState<boolean>(() => siteSettings?.detailAd2Enabled !== false);
   const [detailAd2ImageUrl, setDetailAd2ImageUrl] = useState<string>(() => siteSettings?.detailAd2ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
   const [detailAd2Link, setDetailAd2Link] = useState<string>(() => siteSettings?.detailAd2Link || '#');
+  const [detailAd2Whatsapp, setDetailAd2Whatsapp] = useState<string>(() => siteSettings?.detailAd2Whatsapp || '');
+  const [detailAd2Phone, setDetailAd2Phone] = useState<string>(() => siteSettings?.detailAd2Phone || '');
 
   const [detailAd3Enabled, setDetailAd3Enabled] = useState<boolean>(() => siteSettings?.detailAd3Enabled !== false);
   const [detailAd3ImageUrl, setDetailAd3ImageUrl] = useState<string>(() => siteSettings?.detailAd3ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
   const [detailAd3Link, setDetailAd3Link] = useState<string>(() => siteSettings?.detailAd3Link || '#');
+  const [detailAd3Whatsapp, setDetailAd3Whatsapp] = useState<string>(() => siteSettings?.detailAd3Whatsapp || '');
+  const [detailAd3Phone, setDetailAd3Phone] = useState<string>(() => siteSettings?.detailAd3Phone || '');
 
   const [detailAd4Enabled, setDetailAd4Enabled] = useState<boolean>(() => siteSettings?.detailAd4Enabled !== false);
   const [detailAd4ImageUrl, setDetailAd4ImageUrl] = useState<string>(() => siteSettings?.detailAd4ImageUrl || 'https://drive.google.com/file/d/1_OwWqIM9eTKQH1XffOBlSpL6WWZv_fW-/view?usp=drive_link');
   const [detailAd4Link, setDetailAd4Link] = useState<string>(() => siteSettings?.detailAd4Link || '#');
+  const [detailAd4Whatsapp, setDetailAd4Whatsapp] = useState<string>(() => siteSettings?.detailAd4Whatsapp || '');
+  const [detailAd4Phone, setDetailAd4Phone] = useState<string>(() => siteSettings?.detailAd4Phone || '');
 
   // Brand advertisement slider state variables
   const [brandAdsEnabled, setBrandAdsEnabled] = useState<boolean>(() => siteSettings?.brandAdsEnabled !== false);
@@ -1285,18 +1293,26 @@ export default function AdminPanel({
       setDetailAd1Enabled(siteSettings.detailAd1Enabled !== false);
       setDetailAd1ImageUrl(siteSettings.detailAd1ImageUrl || 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link');
       setDetailAd1Link(siteSettings.detailAd1Link || '#');
+      setDetailAd1Whatsapp(siteSettings.detailAd1Whatsapp || '');
+      setDetailAd1Phone(siteSettings.detailAd1Phone || '');
 
       setDetailAd2Enabled(siteSettings.detailAd2Enabled !== false);
       setDetailAd2ImageUrl(siteSettings.detailAd2ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
       setDetailAd2Link(siteSettings.detailAd2Link || '#');
+      setDetailAd2Whatsapp(siteSettings.detailAd2Whatsapp || '');
+      setDetailAd2Phone(siteSettings.detailAd2Phone || '');
 
       setDetailAd3Enabled(siteSettings.detailAd3Enabled !== false);
       setDetailAd3ImageUrl(siteSettings.detailAd3ImageUrl || 'https://drive.google.com/file/d/18IMddIjMS_H_SyvKDbLE1U1MEktquJxR/view?usp=drive_link');
       setDetailAd3Link(siteSettings.detailAd3Link || '#');
+      setDetailAd3Whatsapp(siteSettings.detailAd3Whatsapp || '');
+      setDetailAd3Phone(siteSettings.detailAd3Phone || '');
 
       setDetailAd4Enabled(siteSettings.detailAd4Enabled !== false);
       setDetailAd4ImageUrl(siteSettings.detailAd4ImageUrl || 'https://drive.google.com/file/d/1_OwWqIM9eTKQH1XffOBlSpL6WWZv_fW-/view?usp=drive_link');
       setDetailAd4Link(siteSettings.detailAd4Link || '#');
+      setDetailAd4Whatsapp(siteSettings.detailAd4Whatsapp || '');
+      setDetailAd4Phone(siteSettings.detailAd4Phone || '');
 
       setBrandAdsEnabled(siteSettings.brandAdsEnabled !== false);
       setBrandAdsSlides(siteSettings.brandAdsSlides || [
@@ -1740,15 +1756,23 @@ export default function AdminPanel({
         detailAd1Enabled,
         detailAd1ImageUrl: detailAd1ImageUrl.trim(),
         detailAd1Link: detailAd1Link.trim(),
+        detailAd1Whatsapp: detailAd1Whatsapp.trim(),
+        detailAd1Phone: detailAd1Phone.trim(),
         detailAd2Enabled,
         detailAd2ImageUrl: detailAd2ImageUrl.trim(),
         detailAd2Link: detailAd2Link.trim(),
+        detailAd2Whatsapp: detailAd2Whatsapp.trim(),
+        detailAd2Phone: detailAd2Phone.trim(),
         detailAd3Enabled,
         detailAd3ImageUrl: detailAd3ImageUrl.trim(),
         detailAd3Link: detailAd3Link.trim(),
+        detailAd3Whatsapp: detailAd3Whatsapp.trim(),
+        detailAd3Phone: detailAd3Phone.trim(),
         detailAd4Enabled,
         detailAd4ImageUrl: detailAd4ImageUrl.trim(),
         detailAd4Link: detailAd4Link.trim(),
+        detailAd4Whatsapp: detailAd4Whatsapp.trim(),
+        detailAd4Phone: detailAd4Phone.trim(),
 
         brandAdsEnabled,
         brandAdsSlides,
@@ -1850,15 +1874,23 @@ export default function AdminPanel({
         detailAd1Enabled: updatedFields && 'detailAd1Enabled' in updatedFields ? updatedFields.detailAd1Enabled : detailAd1Enabled,
         detailAd1ImageUrl: updatedFields && 'detailAd1ImageUrl' in updatedFields ? updatedFields.detailAd1ImageUrl : detailAd1ImageUrl.trim(),
         detailAd1Link: updatedFields && 'detailAd1Link' in updatedFields ? updatedFields.detailAd1Link : detailAd1Link.trim(),
+        detailAd1Whatsapp: updatedFields && 'detailAd1Whatsapp' in updatedFields ? updatedFields.detailAd1Whatsapp : detailAd1Whatsapp.trim(),
+        detailAd1Phone: updatedFields && 'detailAd1Phone' in updatedFields ? updatedFields.detailAd1Phone : detailAd1Phone.trim(),
         detailAd2Enabled: updatedFields && 'detailAd2Enabled' in updatedFields ? updatedFields.detailAd2Enabled : detailAd2Enabled,
         detailAd2ImageUrl: updatedFields && 'detailAd2ImageUrl' in updatedFields ? updatedFields.detailAd2ImageUrl : detailAd2ImageUrl.trim(),
         detailAd2Link: updatedFields && 'detailAd2Link' in updatedFields ? updatedFields.detailAd2Link : detailAd2Link.trim(),
+        detailAd2Whatsapp: updatedFields && 'detailAd2Whatsapp' in updatedFields ? updatedFields.detailAd2Whatsapp : detailAd2Whatsapp.trim(),
+        detailAd2Phone: updatedFields && 'detailAd2Phone' in updatedFields ? updatedFields.detailAd2Phone : detailAd2Phone.trim(),
         detailAd3Enabled: updatedFields && 'detailAd3Enabled' in updatedFields ? updatedFields.detailAd3Enabled : detailAd3Enabled,
         detailAd3ImageUrl: updatedFields && 'detailAd3ImageUrl' in updatedFields ? updatedFields.detailAd3ImageUrl : detailAd3ImageUrl.trim(),
         detailAd3Link: updatedFields && 'detailAd3Link' in updatedFields ? updatedFields.detailAd3Link : detailAd3Link.trim(),
+        detailAd3Whatsapp: updatedFields && 'detailAd3Whatsapp' in updatedFields ? updatedFields.detailAd3Whatsapp : detailAd3Whatsapp.trim(),
+        detailAd3Phone: updatedFields && 'detailAd3Phone' in updatedFields ? updatedFields.detailAd3Phone : detailAd3Phone.trim(),
         detailAd4Enabled: updatedFields && 'detailAd4Enabled' in updatedFields ? updatedFields.detailAd4Enabled : detailAd4Enabled,
         detailAd4ImageUrl: updatedFields && 'detailAd4ImageUrl' in updatedFields ? updatedFields.detailAd4ImageUrl : detailAd4ImageUrl.trim(),
         detailAd4Link: updatedFields && 'detailAd4Link' in updatedFields ? updatedFields.detailAd4Link : detailAd4Link.trim(),
+        detailAd4Whatsapp: updatedFields && 'detailAd4Whatsapp' in updatedFields ? updatedFields.detailAd4Whatsapp : detailAd4Whatsapp.trim(),
+        detailAd4Phone: updatedFields && 'detailAd4Phone' in updatedFields ? updatedFields.detailAd4Phone : detailAd4Phone.trim(),
 
         brandAdsEnabled: updatedFields && 'brandAdsEnabled' in updatedFields ? updatedFields.brandAdsEnabled : brandAdsEnabled,
         brandAdsSlides: updatedFields && 'brandAdsSlides' in updatedFields ? updatedFields.brandAdsSlides : brandAdsSlides,
@@ -2714,7 +2746,7 @@ export default function AdminPanel({
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="text-xs font-black text-slate-300 w-4 block text-center">#{idx + 1}</span>
                           {item.imageURL && (
-                            <img src={item.imageURL} alt="" className="w-10 h-7 rounded object-cover border border-slate-100 shrink-0" referrerPolicy="no-referrer" />
+                            <img src={resolveDriveUrl(item.imageURL)} alt="" className="w-10 h-7 rounded object-cover border border-slate-100 shrink-0" referrerPolicy="no-referrer" />
                           )}
                           <div className="min-w-0">
                             <h4 className="text-xs font-black text-slate-800 truncate leading-snug">{item.title}</h4>
@@ -3395,6 +3427,27 @@ export default function AdminPanel({
                     </label>
                   </div>
 
+                  {/* Real-time live cover image preview */}
+                  {imageURL.trim() && (
+                    <div className="pt-1.5 select-none animate-fade-in">
+                      <span className="text-[10px] text-slate-400 block mb-1 font-bold">कव्हर चित्र पूर्वदृश्य (Cover Image Live Preview):</span>
+                      <div className="aspect-video w-full max-w-[280px] rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative group shadow-xs">
+                        <img
+                          src={resolveDriveUrl(imageURL)}
+                          alt="कव्हर चित्र"
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80';
+                          }}
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-1.5 right-1.5 bg-rose-600 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded-xs uppercase tracking-wider shadow-xs">
+                          Live Preview
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {isUploading === 'news' && (
                     <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-2.5 animate-pulse">
                       <div className="flex justify-between items-center text-xs">
@@ -3430,7 +3483,7 @@ export default function AdminPanel({
                               imageURL === pastImg ? 'border-rose-600 scale-95 ring-2 ring-rose-500/20' : 'border-slate-200 hover:border-rose-350'
                             }`}
                           >
-                            <img src={pastImg} alt="Past choice" className="h-full w-full object-cover" />
+                            <img src={resolveDriveUrl(pastImg)} alt="Past choice" className="h-full w-full object-cover" />
                           </button>
                         ))}
                       </div>
@@ -3610,7 +3663,7 @@ export default function AdminPanel({
                       {/* Image Thumbnail */}
                       <div className="h-16 w-20 sm:h-20 sm:w-24 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden shrink-0">
                         <img
-                          src={item.imageURL}
+                          src={resolveDriveUrl(item.imageURL)}
                           alt={item.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -4215,6 +4268,30 @@ export default function AdminPanel({
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                         />
                       </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">व्हाट्सॲप संपर्क क्रमांक (WhatsApp No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. 9423xxxxxx"
+                            value={detailAd1Whatsapp}
+                            onChange={(e) => setDetailAd1Whatsapp(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. १ चा व्हाट्सॲप क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">कॉलिंग संपर्क क्रमांक (Call No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. +919423xxxxxx"
+                            value={detailAd1Phone}
+                            onChange={(e) => setDetailAd1Phone(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. १ चा कॉलिंग क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                      </div>
                       <div className="pt-1 select-none">
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
@@ -4302,6 +4379,30 @@ export default function AdminPanel({
                           onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. २ ची क्लिक लिंक बदलली.'); }}
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                         />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">व्हाट्सॲप संपर्क क्रमांक (WhatsApp No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. 9423xxxxxx"
+                            value={detailAd2Whatsapp}
+                            onChange={(e) => setDetailAd2Whatsapp(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. २ चा व्हाट्सॲप क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">कॉलिंग संपर्क क्रमांक (Call No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. +919423xxxxxx"
+                            value={detailAd2Phone}
+                            onChange={(e) => setDetailAd2Phone(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. २ चा कॉलिंग क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
                       </div>
                       <div className="pt-1 select-none">
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
@@ -4391,6 +4492,30 @@ export default function AdminPanel({
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                         />
                       </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">व्हाट्सॲप संपर्क क्रमांक (WhatsApp No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. 9423xxxxxx"
+                            value={detailAd3Whatsapp}
+                            onChange={(e) => setDetailAd3Whatsapp(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ३ चा व्हाट्सॲप क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">कॉलिंग संपर्क क्रमांक (Call No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. +919423xxxxxx"
+                            value={detailAd3Phone}
+                            onChange={(e) => setDetailAd3Phone(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ३ चा कॉलिंग क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                      </div>
                       <div className="pt-1 select-none">
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>
                         <div className="aspect-[1290/720] w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-50 relative group">
@@ -4478,6 +4603,30 @@ export default function AdminPanel({
                           onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ४ ची क्लिक लिंक बदलली.'); }}
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
                         />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">व्हाट्सॲप संपर्क क्रमांक (WhatsApp No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. 9423xxxxxx"
+                            value={detailAd4Whatsapp}
+                            onChange={(e) => setDetailAd4Whatsapp(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ४ चा व्हाट्सॲप क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-semibold text-slate-600 block">कॉलिंग संपर्क क्रमांक (Call No)</label>
+                          <input
+                            type="text"
+                            placeholder="उदा. +919423xxxxxx"
+                            value={detailAd4Phone}
+                            onChange={(e) => setDetailAd4Phone(e.target.value)}
+                            onBlur={() => { autoSaveBranding(); addActivityLog('बातमी वाचन जाहिरात क्र. ४ चा कॉलिंग क्रमांक बदलला.'); }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                          />
+                        </div>
                       </div>
                       <div className="pt-1 select-none">
                         <span className="text-[10px] text-slate-400 block mb-1">चित्र पूर्वदृश्य (Live Preview):</span>

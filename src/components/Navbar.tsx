@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { Newspaper, Search, Menu, X, ShieldAlert, Calendar, LayoutGrid, Sun, Activity, Bell, RefreshCw, User, BarChart3, Vote, Shield } from 'lucide-react';
-import { CategoryType, SiteCustomization, AuthUser } from '../types';
+import { CategoryType, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 
 // Helper to convert English numerals to Marathi numerals
 const toMarathiDigits = (num: number | string) => {
@@ -414,7 +414,7 @@ export default function Navbar({
               {siteSettings.channelLogoUrl ? (
                 <div className="shrink-0 relative h-12 w-12 sm:h-14 sm:w-14 rounded-full overflow-hidden border-2 border-rose-600 shadow-md sm:shadow-lg shadow-rose-200/50 hover:scale-105 transition-all duration-300">
                   <img 
-                    src={siteSettings.channelLogoUrl} 
+                    src={resolveDriveUrl(siteSettings.channelLogoUrl)} 
                     alt={siteSettings.channelName || 'Logo'} 
                     className="h-full w-full object-cover relative z-10" 
                     referrerPolicy="no-referrer"

@@ -36,7 +36,8 @@ import {
   Send,
   Sparkles,
   Heart,
-  MessageCircle
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 import { News, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 import AuthorProfile from './AuthorProfile';
@@ -252,7 +253,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     // Open Graph dynamic tags
     updateMetaTag('property', 'og:title', article.title);
     updateMetaTag('property', 'og:description', cleanDesc);
-    updateMetaTag('property', 'og:image', article.imageURL);
+    updateMetaTag('property', 'og:image', resolveDriveUrl(article.imageURL));
     updateMetaTag('property', 'og:url', window.location.href);
     updateMetaTag('property', 'og:type', 'article');
 
@@ -260,7 +261,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     updateMetaTag('name', 'twitter:card', 'summary_large_image');
     updateMetaTag('name', 'twitter:title', article.title);
     updateMetaTag('name', 'twitter:description', cleanDesc);
-    updateMetaTag('name', 'twitter:image', article.imageURL);
+    updateMetaTag('name', 'twitter:image', resolveDriveUrl(article.imageURL));
 
     return () => {
       document.title = prevTitle;
@@ -687,11 +688,102 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     
     // Check if it's HTML content
     const isHtml = content.includes('<') && (content.includes('>') || content.includes('</'));
-    
+
+    // Gather all enabled ads to cycle through them
+    const activeAds: { imageUrl: string; link: string; whatsapp?: string; phone?: string; label: string }[] = [];
+    if (siteSettings?.detailAd1Enabled) {
+      activeAds.push({
+        imageUrl: siteSettings.detailAd1ImageUrl || '',
+        link: siteSettings.detailAd1Link || '#',
+        whatsapp: siteSettings.detailAd1Whatsapp,
+        phone: siteSettings.detailAd1Phone,
+        label: '१'
+      });
+    }
+    if (siteSettings?.detailAd2Enabled) {
+      activeAds.push({
+        imageUrl: siteSettings.detailAd2ImageUrl || '',
+        link: siteSettings.detailAd2Link || '#',
+        whatsapp: siteSettings.detailAd2Whatsapp,
+        phone: siteSettings.detailAd2Phone,
+        label: '२'
+      });
+    }
+    if (siteSettings?.detailAd3Enabled) {
+      activeAds.push({
+        imageUrl: siteSettings.detailAd3ImageUrl || '',
+        link: siteSettings.detailAd3Link || '#',
+        whatsapp: siteSettings.detailAd3Whatsapp,
+        phone: siteSettings.detailAd3Phone,
+        label: '३'
+      });
+    }
+    if (siteSettings?.detailAd4Enabled) {
+      activeAds.push({
+        imageUrl: siteSettings.detailAd4ImageUrl || '',
+        link: siteSettings.detailAd4Link || '#',
+        whatsapp: siteSettings.detailAd4Whatsapp,
+        phone: siteSettings.detailAd4Phone,
+        label: '४'
+      });
+    }
+
+    const renderAdCard = (ad: { imageUrl: string; link: string; whatsapp?: string; phone?: string; label: string }, key: string) => {
+      return (
+        <div key={key} className="w-full my-6 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-2.5 transition-all duration-300 hover:shadow-md animate-fade-in select-none">
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold px-1 mb-1.5 font-sans">
+            <span>जाहिरात {ad.label} (स्पॉन्सर्ड)</span>
+            <span>अधिक माहिती</span>
+          </div>
+          <a 
+            href={ad.link || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block rounded-xl overflow-hidden cursor-pointer"
+          >
+            <img 
+              src={resolveDriveUrl(ad.imageUrl)} 
+              alt="जाहिरात" 
+              className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
+              }}
+              referrerPolicy="no-referrer"
+            />
+          </a>
+          {((ad.whatsapp) || (ad.phone)) && (
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2.5 px-1 pb-1">
+              {ad.whatsapp && (
+                <a
+                  href={`https://wa.me/${ad.whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-grow bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span>व्हाट्सॲप संपर्क (WhatsApp)</span>
+                </a>
+              )}
+              {ad.phone && (
+                <a
+                  href={`tel:${ad.phone.trim()}`}
+                  className="flex-grow bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer"
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span>कॉल करा (Call Sponsor)</span>
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    let adIndex = 0;
+
     if (isHtml) {
       // Find all paragraphs - split by </p>
       const pTags = content.split('</p>');
-      // pTags might contain empty strings at the end due to trailing whitespace or trailing tags
       const nonEmpties = pTags.filter(p => p.trim() !== '');
       
       const elements: React.ReactNode[] = [];
@@ -713,61 +805,17 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
           />
         );
         
-        // After Paragraph 2 (idx === 1)
-        if (idx === 1 && siteSettings?.detailAd2Enabled) {
-          elements.push(
-            <div key="ad-2" className="w-full my-6 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-2.5 transition-all duration-300 hover:shadow-md animate-fade-in">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold px-1 mb-1.5 font-sans">
-                <span>जाहिरात (स्पॉन्सर्ड)</span>
-                <span>अधिक माहिती</span>
-              </div>
-              <a 
-                href={siteSettings.detailAd2Link || '#'} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block rounded-xl overflow-hidden cursor-pointer"
-              >
-                <img 
-                  src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
-                  alt="जाहिरात" 
-                  className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
-                  }}
-                  referrerPolicy="no-referrer"
-                />
-              </a>
-            </div>
-          );
+        // After every 4th Paragraph (idx === 3, 7, 11, ...)
+        if ((idx + 1) % 4 === 0 && activeAds.length > 0) {
+          const currentAd = activeAds[adIndex % activeAds.length];
+          adIndex++;
+          elements.push(renderAdCard(currentAd, `mid-ad-${idx}`));
         }
       });
       
-      const lastIdx = nonEmpties.length - 1;
-      if (lastIdx < 1 && siteSettings?.detailAd2Enabled) {
-        elements.push(
-          <div key="ad-2-end" className="w-full my-6 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-2.5 transition-all duration-300 hover:shadow-md animate-fade-in">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold px-1 mb-1.5 font-sans">
-              <span>जाहिरात (स्पॉन्सर्ड)</span>
-              <span>अधिक माहिती</span>
-            </div>
-            <a 
-              href={siteSettings.detailAd2Link || '#'} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="block rounded-xl overflow-hidden cursor-pointer"
-            >
-              <img 
-                src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
-                alt="जाहिरात" 
-                className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
-                }}
-                referrerPolicy="no-referrer"
-              />
-            </a>
-          </div>
-        );
+      // Fallback: If no ads were injected inside the body (e.g. less than 4 paragraphs) and ads are enabled, inject one
+      if (adIndex === 0 && activeAds.length > 0) {
+        elements.push(renderAdCard(activeAds[0], 'fallback-mid-ad'));
       }
       
       return <div className="space-y-6">{elements}</div>;
@@ -788,61 +836,17 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
           </p>
         );
         
-        // After Paragraph 2 (idx === 1)
-        if (idx === 1 && siteSettings?.detailAd2Enabled) {
-          elements.push(
-            <div key="ad-2" className="w-full my-6 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-2.5 transition-all duration-300 hover:shadow-md animate-fade-in">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold px-1 mb-1.5 font-sans">
-                <span>जाहिरात (स्पॉन्सर्ड)</span>
-                <span>अधिक माहिती</span>
-              </div>
-              <a 
-                href={siteSettings.detailAd2Link || '#'} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block rounded-xl overflow-hidden cursor-pointer"
-              >
-                <img 
-                  src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
-                  alt="जाहिरात" 
-                  className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
-                  }}
-                  referrerPolicy="no-referrer"
-                />
-              </a>
-            </div>
-          );
+        // After every 4th Paragraph
+        if ((idx + 1) % 4 === 0 && activeAds.length > 0) {
+          const currentAd = activeAds[adIndex % activeAds.length];
+          adIndex++;
+          elements.push(renderAdCard(currentAd, `mid-ad-${idx}`));
         }
       });
       
-      const lastIdx = paragraphs.length - 1;
-      if (lastIdx < 1 && siteSettings?.detailAd2Enabled) {
-        elements.push(
-          <div key="ad-2-end" className="w-full my-6 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-2.5 transition-all duration-300 hover:shadow-md animate-fade-in">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold px-1 mb-1.5 font-sans">
-              <span>जाहिरात (स्पॉन्सर्ड)</span>
-              <span>अधिक माहिती</span>
-            </div>
-            <a 
-              href={siteSettings.detailAd2Link || '#'} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="block rounded-xl overflow-hidden cursor-pointer"
-            >
-              <img 
-                src={resolveDriveUrl(siteSettings.detailAd2ImageUrl || '')} 
-                alt="जाहिरात" 
-                className="w-full h-auto aspect-[1290/720] max-w-[1290px] max-h-[720px] object-cover transition-transform duration-500 hover:scale-[1.01]"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80';
-                }}
-                referrerPolicy="no-referrer"
-              />
-            </a>
-          </div>
-        );
+      // Fallback: If no ads were injected inside the body (less than 4 paragraphs) and ads are enabled, inject one
+      if (adIndex === 0 && activeAds.length > 0) {
+        elements.push(renderAdCard(activeAds[0], 'fallback-mid-ad'));
       }
       
       return <>{elements}</>;
@@ -1146,6 +1150,30 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
               referrerPolicy="no-referrer"
             />
           </a>
+          {((siteSettings?.detailAd1Whatsapp) || (siteSettings?.detailAd1Phone)) && (
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2.5 px-1 pb-1">
+              {siteSettings.detailAd1Whatsapp && (
+                <a
+                  href={`https://wa.me/${siteSettings.detailAd1Whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-grow bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span>व्हाट्सॲप संपर्क (WhatsApp)</span>
+                </a>
+              )}
+              {siteSettings.detailAd1Phone && (
+                <a
+                  href={`tel:${siteSettings.detailAd1Phone.trim()}`}
+                  className="flex-grow bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span>कॉल करा (Call Sponsor)</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1180,7 +1208,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
               </div>
             )}
             <img
-              src={article.imageURL}
+              src={resolveDriveUrl(article.imageURL)}
               alt={article.title}
               className={`w-full h-full object-cover max-h-[400px] aspect-video transition-all duration-500 group-hover:scale-[1.02] ${
                 isMainImageLoading ? 'opacity-0' : 'opacity-100'
@@ -1484,6 +1512,30 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
                   referrerPolicy="no-referrer"
                 />
               </a>
+              {((siteSettings?.detailAd3Whatsapp) || (siteSettings?.detailAd3Phone)) && (
+                <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2.5 px-1 pb-1">
+                  {siteSettings.detailAd3Whatsapp && (
+                    <a
+                      href={`https://wa.me/${siteSettings.detailAd3Whatsapp.replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-grow bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span>व्हाट्सॲप संपर्क (WhatsApp)</span>
+                    </a>
+                  )}
+                  {siteSettings.detailAd3Phone && (
+                    <a
+                      href={`tel:${siteSettings.detailAd3Phone.trim()}`}
+                      className="flex-grow bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                    >
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      <span>कॉल करा (Call Sponsor)</span>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1512,6 +1564,30 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
               referrerPolicy="no-referrer"
             />
           </a>
+          {((siteSettings?.detailAd4Whatsapp) || (siteSettings?.detailAd4Phone)) && (
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 mt-2.5 px-1 pb-1">
+              {siteSettings.detailAd4Whatsapp && (
+                <a
+                  href={`https://wa.me/${siteSettings.detailAd4Whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-grow bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span>व्हाट्सॲप संपर्क (WhatsApp)</span>
+                </a>
+              )}
+              {siteSettings.detailAd4Phone && (
+                <a
+                  href={`tel:${siteSettings.detailAd4Phone.trim()}`}
+                  className="flex-grow bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5 transition duration-150 shadow-xs cursor-pointer select-none"
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span>कॉल करा (Call Sponsor)</span>
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1746,7 +1822,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
                 {/* Related Thumbnail */}
                 <div className="aspect-video w-full rounded-xl overflow-hidden bg-slate-100 relative mb-3 shrink-0">
                   <img
-                    src={relItem.imageURL}
+                    src={resolveDriveUrl(relItem.imageURL)}
                     alt={relItem.title}
                     className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
                     loading="lazy"
@@ -1817,7 +1893,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             )}
             
             <img
-              src={article.imageURL}
+              src={resolveDriveUrl(article.imageURL)}
               alt={article.title}
               className={`max-w-full max-h-[75vh] object-contain transition-transform duration-100 shadow-2xl rounded-sm ${
                 isZoomedImageLoading ? 'opacity-0' : 'opacity-100'
