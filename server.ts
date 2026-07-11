@@ -456,6 +456,40 @@ Follow these rules strictly:
     }
   });
 
+  // Dynamic server-side TTS proxy to serve clean Marathi TTS audio without iframe/CORS issues
+  app.get('/api/tts', async (req, res) => {
+    try {
+      const text = req.query.text as string;
+      if (!text || !text.trim()) {
+        return res.status(400).send('No text specified.');
+      }
+
+      const speed = req.query.speed as string || '1';
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.trim())}&tl=mr&client=tw-ob&ttsspeed=${speed}`;
+
+      const response = await fetch(ttsUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+          'Referer': 'https://translate.google.com/'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Google TTS failed with status: ${response.status}`);
+      }
+
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      return res.send(buffer);
+    } catch (err: any) {
+      console.error('TTS proxy error:', err);
+      return res.status(500).send('Failed to play audio.');
+    }
+  });
+
   // Dynamic XML Sitemap for SEO search indexing
   app.get('/sitemap.xml', async (req, res) => {
     try {

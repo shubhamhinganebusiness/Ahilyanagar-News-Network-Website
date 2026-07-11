@@ -76,6 +76,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const [speakRate, setSpeakRate] = useState(1.1);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioPlaylistRef = useRef<string[]>([]);
+  const currentChunkIndexRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Comments wall interactive state managers
   const [comments, setComments] = useState<{ id: string; author: string; text: string; date: string; likes: number; likedByMe?: boolean }[]>([]);
@@ -268,63 +271,36 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
         };
         window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
         window.speechSynthesis.getVoices();
-        return () => {
-          if (window.speechSynthesis) {
-            window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-            window.speechSynthesis.cancel();
-          }
-        };
       }
     }
     return () => {
       if (synthRef.current) {
-        synthRef.current.cancel();
+        try {
+          synthRef.current.cancel();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+          audioRef.current.onended = null;
+          audioRef.current.onerror = null;
+        } catch (e) {
+          console.error(e);
+        }
+        audioRef.current = null;
       }
     };
   }, []);
 
   // Hook: Listeners to rate changes
   useEffect(() => {
-    if (isSpeaking && utteranceRef.current && synthRef.current) {
-      const currentText = utteranceRef.current.text;
-      synthRef.current.cancel();
-      if (synthRef.current.paused) {
-        synthRef.current.resume();
+    if (isSpeaking && !isSpeechPaused && audioPlaylistRef.current.length > 0) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        playGoogleTtsChunk(currentChunkIndexRef.current);
       }
-      const newUtterance = new SpeechSynthesisUtterance(currentText);
-      newUtterance.rate = speakRate;
-      
-      const voices = synthRef.current.getVoices();
-      let selectedVoice = voices.find(v => v.lang.toLowerCase() === 'mr-in' || v.lang.toLowerCase() === 'mr_in');
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase() === 'hi_in');
-      }
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.toLowerCase().includes('in'));
-      }
-
-      if (selectedVoice) {
-        newUtterance.voice = selectedVoice;
-        newUtterance.lang = selectedVoice.lang;
-      } else {
-        newUtterance.lang = 'mr-IN';
-      }
-
-      newUtterance.onend = () => {
-        setIsSpeaking(false);
-        setIsSpeechPaused(false);
-      };
-      newUtterance.onerror = () => {
-        setIsSpeaking(false);
-        setIsSpeechPaused(false);
-      };
-      utteranceRef.current = newUtterance;
-      
-      setTimeout(() => {
-        if (synthRef.current) {
-          synthRef.current.speak(newUtterance);
-        }
-      }, 100);
     }
   }, [speakRate]);
 
@@ -344,20 +320,107 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     }
   }, [articleId]);
 
-  const handleStartSpeech = () => {
-    if (!article || !synthRef.current) {
+  const splitTextIntoChunks = (text: string, maxLen = 150): string[] => {
+    const clean = text.replace(/<[^>]*>/g, '').trim();
+    if (!clean) return [];
+
+    // Split by common Marathi/Hindi and English sentence punctuation
+    const sentences = clean.split(/([।\.\!\?,;\n]+)/);
+    const chunks: string[] = [];
+    let currentChunk = '';
+
+    for (let i = 0; i < sentences.length; i++) {
+      const part = sentences[i];
+      if (!part) continue;
+      
+      if ((currentChunk + part).length > maxLen) {
+        if (currentChunk.trim()) {
+          chunks.push(currentChunk.trim());
+        }
+        currentChunk = part;
+      } else {
+        currentChunk += part;
+      }
+    }
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    return chunks.filter(c => c.trim().length > 1);
+  };
+
+  const playGoogleTtsChunk = (index: number) => {
+    if (index >= audioPlaylistRef.current.length) {
+      setIsSpeaking(false);
+      setIsSpeechPaused(false);
+      addToast('वाचन पूर्ण झाले.', 'success');
+      return;
+    }
+
+    currentChunkIndexRef.current = index;
+    const textToSpeak = audioPlaylistRef.current[index];
+
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+
+      // Handle speech rate for Google Translate TTS proxy
+      let speedVal = '1';
+      if (speakRate < 0.9) {
+        speedVal = '0.7';
+      } else if (speakRate > 1.2) {
+        speedVal = '1.3';
+      }
+      
+      const ttsUrl = `/api/tts?text=${encodeURIComponent(textToSpeak)}&speed=${speedVal}`;
+      audioRef.current.src = ttsUrl;
+      audioRef.current.load();
+
+      audioRef.current.onended = () => {
+        playGoogleTtsChunk(index + 1);
+      };
+
+      audioRef.current.onerror = (e) => {
+        console.warn('Google TTS proxy failed, falling back to Web Speech:', e);
+        fallbackToWebSpeech(index);
+      };
+
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          if (index === 0) {
+            addToast('मराठी वाचन सेवा सुरू झाली आहे 🎙️', 'success');
+          }
+        }).catch(err => {
+          console.warn('Google TTS proxy play failed, trying fallback:', err);
+          fallbackToWebSpeech(index);
+        });
+      }
+    } catch (err) {
+      console.error('Failed to run Google TTS proxy, falling back:', err);
+      fallbackToWebSpeech(index);
+    }
+  };
+
+  const fallbackToWebSpeech = (startIndex: number) => {
+    if (!synthRef.current) {
       addToast('तुमच्या ब्राउझरमध्ये ऑडिओ वाचन सेवा उपलब्ध नाही.', 'error');
+      setIsSpeaking(false);
+      setIsSpeechPaused(false);
+      return;
+    }
+
+    const remainingText = audioPlaylistRef.current.slice(startIndex).join('. ');
+    if (!remainingText.trim()) {
+      setIsSpeaking(false);
+      setIsSpeechPaused(false);
       return;
     }
 
     try {
       synthRef.current.cancel();
-      if (synthRef.current.paused) {
-        synthRef.current.resume();
-      }
-
-      const cleanText = article.title + ". " + article.description + ". " + article.content.replace(/<[^>]*>/g, '');
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      
+      const utterance = new SpeechSynthesisUtterance(remainingText);
       utterance.rate = speakRate;
 
       const voices = synthRef.current.getVoices();
@@ -372,52 +435,87 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       if (selectedVoice) {
         utterance.voice = selectedVoice;
         utterance.lang = selectedVoice.lang;
-        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
       } else {
         utterance.lang = 'mr-IN';
-        console.log('Using default browser voice for mr-IN');
       }
 
       utterance.onend = () => {
         setIsSpeaking(false);
         setIsSpeechPaused(false);
       };
+
       utterance.onerror = (e) => {
-        console.error('Speech synthesis error:', e);
+        console.error('Fallback speech synthesis error:', e);
         setIsSpeaking(false);
         setIsSpeechPaused(false);
-        if (e.error !== 'interrupted') {
-          addToast('ऑडिओ वाचनात अडचण आली.', 'error');
-        }
       };
 
       utteranceRef.current = utterance;
       setIsSpeaking(true);
       setIsSpeechPaused(false);
-
-      setTimeout(() => {
-        if (synthRef.current) {
-          synthRef.current.speak(utterance);
-          addToast('मराठी वाचन सेवा सुरू झाली आहे 🎙️', 'success');
-        }
-      }, 100);
+      synthRef.current.speak(utterance);
     } catch (err) {
-      console.error('Failed to start speech synthesis:', err);
+      console.error('Web speech synthesis failed:', err);
       setIsSpeaking(false);
       setIsSpeechPaused(false);
       addToast('ऑडिओ प्लेयर सुरू करता आला नाही.', 'error');
     }
   };
 
+  const handleStartSpeech = () => {
+    if (!article) return;
+
+    if (synthRef.current) {
+      try {
+        synthRef.current.cancel();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const cleanContent = article.content.replace(/<[^>]*>/g, '');
+    const fullText = `${article.title}. ${article.description}. ${cleanContent}`;
+    const chunks = splitTextIntoChunks(fullText, 180);
+
+    if (chunks.length === 0) {
+      addToast('वाचनासाठी मजकूर उपलब्ध नाही.', 'error');
+      return;
+    }
+
+    audioPlaylistRef.current = chunks;
+    currentChunkIndexRef.current = 0;
+    setIsSpeaking(true);
+    setIsSpeechPaused(false);
+
+    playGoogleTtsChunk(0);
+  };
+
   const handlePauseResumeSpeech = () => {
-    if (!synthRef.current) return;
     try {
       if (isSpeechPaused) {
-        synthRef.current.resume();
+        if (audioRef.current && audioPlaylistRef.current.length > 0) {
+          audioRef.current.play().catch(e => console.error("Error resuming audio:", e));
+        } else if (synthRef.current) {
+          synthRef.current.resume();
+        }
         setIsSpeechPaused(false);
         addToast('वाचन पुन्हा सुरू केले.', 'info');
       } else {
-        synthRef.current.pause();
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        if (synthRef.current) {
+          synthRef.current.pause();
+        }
         setIsSpeechPaused(true);
         addToast('वाचन थांबवले.', 'info');
       }
@@ -427,9 +525,15 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   };
 
   const handleStopSpeech = () => {
-    if (!synthRef.current) return;
     try {
-      synthRef.current.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+      }
+      if (synthRef.current) {
+        synthRef.current.cancel();
+      }
       setIsSpeaking(false);
       setIsSpeechPaused(false);
       addToast('मराठी वाचन सेवा बंद करण्यात आली.', 'info');
