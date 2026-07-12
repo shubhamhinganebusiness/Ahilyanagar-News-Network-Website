@@ -20,6 +20,26 @@ export function useMetadata(activeArticle: News | null, siteSettings: SiteCustom
       }
     };
 
+    // Dynamically update favicon (site title bar image)
+    const logoUrl = siteSettings.channelLogoUrl ? resolveDriveUrl(siteSettings.channelLogoUrl) : '/logo.jpg';
+    if (logoUrl) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = logoUrl;
+      
+      let appleLink = document.querySelector("link[rel~='apple-touch-icon']") as HTMLLinkElement;
+      if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        document.head.appendChild(appleLink);
+      }
+      appleLink.href = logoUrl;
+    }
+
     if (activeArticle) {
       const cleanDesc = activeArticle.description || activeArticle.content.replace(/<[^>]*>/g, '').slice(0, 150);
       const articleImage = activeArticle.imageURL ? resolveDriveUrl(activeArticle.imageURL) : '';

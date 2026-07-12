@@ -67,6 +67,259 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg' | 'xl' | '2xl'>('lg');
   const [fontStyle, setFontStyle] = useState<'font-sans' | 'font-serif'>('font-sans');
   const [readingTheme, setReadingTheme] = useState<'white' | 'cream' | 'dark'>('white');
+
+  // Text to Speech (TTS) state managers
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [speechRate, setSpeechRate] = useState(1.0);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
+  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Helper: Strip HTML and clean text for natural speech flow
+  const cleanHtmlText = (html: string): string => {
+    if (!html) return '';
+    let text = html.replace(/<[^>]*>/g, ' ');
+    text = text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+    return text.replace(/\s+/g, ' ').trim();
+  };
+
+  // Helper: Find best Marathi or Hindi voice
+  const getMarathiVoice = (voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null => {
+    const marathiVoice = voices.find(v => v.lang.toLowerCase().startsWith('mr'));
+    if (marathiVoice) return marathiVoice;
+    const hindiVoice = voices.find(v => v.lang.toLowerCase().startsWith('hi'));
+    if (hindiVoice) return hindiVoice;
+    return null;
+  };
+
+  // TTS Voice Initialization & Unmount cleanup hook
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      // Keep Indian and common English fallback voices
+      const filtered = voices.filter(v => 
+        v.lang.toLowerCase().startsWith('mr') || 
+        v.lang.toLowerCase().startsWith('hi') || 
+        v.lang.toLowerCase().startsWith('en')
+      );
+      setAvailableVoices(filtered);
+      
+      const best = getMarathiVoice(voices);
+      if (best) {
+        setSelectedVoiceName(best.name);
+      } else if (filtered.length > 0) {
+        setSelectedVoiceName(filtered[0].name);
+      }
+    };
+
+    updateVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+
+    return () => {
+      if (window.speechSynthesis) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [articleId]);
+
+  // Refs to manage sentence-by-sentence reading queue
+  const currentChunkIndexRef = useRef<number>(0);
+  const chunksRef = useRef<string[]>([]);
+
+  // Split clean text into manageable sentences (under 150 chars per chunk for maximum Web Speech API stability)
+  const splitIntoChunks = (text: string): string[] => {
+    if (!text) return [];
+    // Split by Marathi/Hindi fullstop (।), standard fullstop (.), question mark (?), exclamation mark (!), semicolons, or newlines
+    const rawChunks = text.split(/([।\.!\?\n\r]+)/);
+    const result: string[] = [];
+    let current = '';
+    
+    for (let i = 0; i < rawChunks.length; i++) {
+      const part = rawChunks[i];
+      if (!part) continue;
+      
+      // If it is a delimiter, attach it to the current sentence
+      if (/^[।\.!\?\n\r]+$/.test(part)) {
+        current += part;
+        const trimmed = current.trim();
+        if (trimmed) {
+          result.push(trimmed);
+        }
+        current = '';
+      } else {
+        if (current.trim()) {
+          result.push(current.trim());
+        }
+        current = part;
+      }
+    }
+    if (current.trim()) {
+      result.push(current.trim());
+    }
+
+    // Ensure all chunks are reasonably sized (under 150 characters) to prevent browser synthesis crashes
+    const finalChunks: string[] = [];
+    for (const chunk of result) {
+      const cleanChunk = chunk.replace(/\s+/g, ' ').trim();
+      if (!cleanChunk) continue;
+
+      if (cleanChunk.length > 150) {
+        // split by space or comma
+        const words = cleanChunk.split(' ');
+        let temp = '';
+        for (const word of words) {
+          if ((temp + ' ' + word).length > 150) {
+            if (temp.trim()) finalChunks.push(temp.trim());
+            temp = word;
+          } else {
+            temp = temp ? temp + ' ' + word : word;
+          }
+        }
+        if (temp.trim()) finalChunks.push(temp.trim());
+      } else {
+        finalChunks.push(cleanChunk);
+      }
+    }
+
+    return finalChunks;
+  };
+
+  const speakCurrentChunk = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    // Check if we reached the end of the queue or if queue was cleared
+    if (currentChunkIndexRef.current >= chunksRef.current.length) {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      activeUtteranceRef.current = null;
+      addToast('बातमीचे वाचन पूर्ण झाले.', 'success');
+      return;
+    }
+
+    const chunkText = chunksRef.current[currentChunkIndexRef.current];
+    const utterance = new SpeechSynthesisUtterance(chunkText);
+    activeUtteranceRef.current = utterance; // Keep alive in ref to avoid garbage collection
+
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.name === selectedVoiceName) || getMarathiVoice(voices);
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = 'mr-IN'; // Default to Marathi
+    }
+
+    utterance.rate = speechRate;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      // If activeUtteranceRef is cleared, it means we stopped/reset speaking
+      if (!activeUtteranceRef.current) return;
+      
+      currentChunkIndexRef.current++;
+      speakCurrentChunk();
+    };
+
+    utterance.onerror = (e) => {
+      // Ignored interrupted errors as they are part of regular stop/cancel flow
+      if (e.error !== 'interrupted') {
+        console.warn('SpeechSynthesis chunk error, skipping to next chunk:', e.error);
+        currentChunkIndexRef.current++;
+        speakCurrentChunk();
+      } else {
+        activeUtteranceRef.current = null;
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleStartSpeaking = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !article) return;
+
+    if (isSpeaking && isPaused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+      addToast('वाचन पुन्हा सुरू केले.', 'info');
+      return;
+    }
+
+    // Fully resume any stalled states before canceling to prevent browser Speech Lock-up
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    window.speechSynthesis.cancel();
+
+    const titleText = article.title;
+    const authorText = article.author ? `लेखक: ${article.author}.` : '';
+    const mainContentText = cleanHtmlText(article.content);
+    
+    const textToSpeak = `${titleText}. ${authorText}. ${mainContentText}`;
+    chunksRef.current = splitIntoChunks(textToSpeak);
+    currentChunkIndexRef.current = 0;
+
+    if (chunksRef.current.length === 0) {
+      addToast('वाचण्यासाठी कोणताही मजकूर उपलब्ध नाही.', 'error');
+      return;
+    }
+
+    speakCurrentChunk();
+    addToast('बातमीचे वाचन सुरू केले.', 'info');
+  };
+
+  const handlePauseSpeaking = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (isSpeaking && !isPaused) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+      addToast('वाचन थांबवले.', 'info');
+    }
+  };
+
+  const handleStopSpeaking = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    activeUtteranceRef.current = null; // Unregister before cancel to prevent onend recursion
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+    addToast('वाचन बंद केले.', 'info');
+  };
+
+  const handleRateChange = (rate: number) => {
+    setSpeechRate(rate);
+    if (isSpeaking) {
+      // Seamlessly restart speaking from the current chunk with the new speed
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      activeUtteranceRef.current = null;
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        speakCurrentChunk();
+      }, 100);
+    }
+  };
   
   // Reading scroll progress tracker
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -900,9 +1153,87 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       </div>
 
       {/* Premium Reader Operations Dashboard */}
-      <div className="mt-5 mb-2 p-4 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col md:flex-row items-center justify-end gap-4 select-none animate-fade-in">
+      <div className="mt-5 mb-2 p-4 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col md:flex-row items-center gap-4 select-none animate-fade-in">
+        {/* Left Side: Text to Speech (TTS) Controls */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-center md:justify-start mr-auto bg-rose-50/40 p-2 rounded-xl border border-rose-100/50 shadow-3xs">
+          <div className="flex items-center space-x-1">
+            <Volume2 className="h-4.5 w-4.5 text-rose-600" />
+            <span className="text-xs font-bold text-slate-700 font-sans mr-1">बातमी ऐका:</span>
+          </div>
+
+          <div className="flex items-center space-x-1.5">
+            {!isSpeaking || isPaused ? (
+              <button
+                onClick={handleStartSpeaking}
+                className="flex items-center space-x-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+                title="बातमी ऐका"
+              >
+                <Play className="h-3 w-3 fill-current" />
+                <span>ऐका (Listen)</span>
+              </button>
+            ) : (
+              <button
+                onClick={handlePauseSpeaking}
+                className="flex items-center space-x-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+                title="वाचन थांबवा"
+              >
+                <Pause className="h-3 w-3 fill-current" />
+                <span>थांबवा (Pause)</span>
+              </button>
+            )}
+
+            {isSpeaking && (
+              <button
+                onClick={handleStopSpeaking}
+                className="flex items-center space-x-1 bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-2 py-1.5 rounded-lg shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+                title="वाचन पूर्ण बंद करा"
+              >
+                <VolumeX className="h-3 w-3" />
+                <span>बंद करा</span>
+              </button>
+            )}
+          </div>
+
+          {/* Speed / Rate control */}
+          <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 text-[11px] font-semibold shadow-3xs">
+            <span className="text-slate-400 px-1 font-bold">वेग:</span>
+            {([0.8, 1.0, 1.25, 1.5] as const).map((rate) => (
+              <button
+                key={rate}
+                onClick={() => handleRateChange(rate)}
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                  speechRate === rate ? 'bg-rose-100 text-rose-700 font-bold' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
+
+          {/* Voice selector */}
+          {availableVoices.length > 1 && (
+            <select
+              value={selectedVoiceName}
+              onChange={(e) => {
+                setSelectedVoiceName(e.target.value);
+                if (isSpeaking && !isPaused) {
+                  setTimeout(() => handleStartSpeaking(), 100);
+                }
+              }}
+              className="text-[11px] bg-white border border-slate-200 text-slate-700 py-1 px-1.5 rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-rose-500 max-w-[130px] truncate shadow-3xs"
+            >
+              {availableVoices.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name.includes('Google') ? 'Google ' : ''}
+                  {voice.lang.startsWith('mr') ? 'मराठी' : voice.lang.startsWith('hi') ? 'हिंदी' : 'English'}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
         {/* Right Side: Font Size, Serif, and Cozy Theme presets */}
-        <div className="flex flex-wrap items-center gap-3 w-full justify-center md:justify-end">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-center md:justify-end">
           {/* Theme background presets */}
           <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-xl p-1 shadow-3xs">
             <button
