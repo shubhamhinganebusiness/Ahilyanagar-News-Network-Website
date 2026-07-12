@@ -507,13 +507,15 @@ export class PortalDatabase {
     }
   }
 
-  async getById(id: string): Promise<News | null> {
+  async getById(id: string, incrementViews: boolean = true): Promise<News | null> {
     if (this.useFallback) {
       const list = this.getLocalNews();
       const item = list.find(x => x._id === id);
       if (!item) return null;
-      item.views = (item.views || 0) + 1;
-      this.saveLocalNews(list);
+      if (incrementViews) {
+        item.views = (item.views || 0) + 1;
+        this.saveLocalNews(list);
+      }
       return item;
     }
 
@@ -523,10 +525,17 @@ export class PortalDatabase {
       if (!docSnap.exists()) return null;
       
       const data = docSnap.data()!;
-      const currentViews = (data.views || 0) + 1;
+      let currentViews = data.views || 0;
       
-      // Increment views
-      await updateDoc(docRef, { views: currentViews });
+      if (incrementViews) {
+        currentViews += 1;
+        // Increment views in background safely
+        try {
+          await updateDoc(docRef, { views: currentViews });
+        } catch (e) {
+          console.error('Error updating views on getById:', e);
+        }
+      }
       
       return {
         _id: docSnap.id,
@@ -547,7 +556,7 @@ export class PortalDatabase {
       } as News;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {
-        return this.getById(id);
+        return this.getById(id, incrementViews);
       }
       handleFirestoreError(err, OperationType.GET, `news/${id}`);
       return null;

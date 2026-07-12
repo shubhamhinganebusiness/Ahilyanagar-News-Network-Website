@@ -618,11 +618,11 @@ Follow these rules strictly:
     }
   });
 
-  // Serve the article's image as a direct binary image stream for social crawler preview compatibility
-  app.get('/api/news/:id/image', async (req, res) => {
+  // Serve the raw binary image directly from database, local files, or Google Drive (used by wsrv.nl)
+  app.get('/api/news/:id/raw-image', async (req, res) => {
     try {
       const { id } = req.params;
-      const article = await db.getById(id);
+      const article = await db.getById(id, false); // Optimized read-only, no view increments
       
       if (!article || !article.imageURL) {
         // Serve a default fallback image
@@ -648,7 +648,7 @@ Follow these rules strictly:
         }
       }
 
-      // Case 2: Google Drive URL (convert/resolve to lh3 direct CDN or use direct proxy)
+      // Case 2: Google Drive URL
       const fileDMatch = imageUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       const ucMatch = imageUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       const driveId = (fileDMatch && fileDMatch[1]) || (ucMatch && ucMatch[1]);
@@ -669,7 +669,27 @@ Follow these rules strictly:
         }
       }
 
-      // Case 3: Standard URL
+      // Case 3: Local uploads path
+      if (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('/Images/') || imageUrl.startsWith('/images/')) {
+        const localPath = path.join(process.cwd(), 'public', imageUrl);
+        if (fs.existsSync(localPath)) {
+          const ext = path.extname(localPath).toLowerCase();
+          const contentType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          return res.sendFile(localPath);
+        }
+        const fallbackLocalPath = path.join(process.cwd(), imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl);
+        if (fs.existsSync(fallbackLocalPath)) {
+          const ext = path.extname(fallbackLocalPath).toLowerCase();
+          const contentType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          return res.sendFile(fallbackLocalPath);
+        }
+      }
+
+      // Case 4: Standard external URL
       if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
         const response = await fetch(imageUrl, {
           headers: {
@@ -685,7 +705,7 @@ Follow these rules strictly:
         }
       }
 
-      // Fallback: If nothing else matched or fetch failed, serve fallback image
+      // Final fallback: Unsplash default image
       const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
       const arrayBuffer = await fallbackRes.arrayBuffer();
       res.setHeader('Content-Type', 'image/jpeg');
@@ -693,8 +713,71 @@ Follow these rules strictly:
       return res.send(Buffer.from(arrayBuffer));
 
     } catch (err) {
-      console.error('Error serving article image:', err);
-      // Fallback to avoid breaking layout
+      console.error('Error serving raw article image:', err);
+      try {
+        const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+        const arrayBuffer = await fallbackRes.arrayBuffer();
+        res.setHeader('Content-Type', 'image/jpeg');
+        return res.send(Buffer.from(arrayBuffer));
+      } catch (fbErr) {
+        return res.status(500).send('Internal Server Error');
+      }
+    }
+  });
+
+  // Serve the article's image as an optimized, compressed, and resized stream for social crawler preview compatibility
+  app.get('/api/news/:id/image', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const host = req.get('host') || 'majhapatra.com';
+      let protocol = 'https';
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      if (typeof forwardedProto === 'string') {
+        protocol = forwardedProto.split(',')[0].trim();
+      } else if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
+        protocol = 'http';
+      }
+
+      // Construct raw image URL served publicly by our raw-image endpoint
+      const rawImageUrl = `${protocol}://${host}/api/news/${id}/raw-image`;
+
+      // Use wsrv.nl to resize to 600x315 and compress to 70% quality JPEG.
+      // This will reduce file sizes from megabytes down to ~40KB-60KB, easily fitting within WhatsApp's 300KB limit.
+      const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawImageUrl)}&w=600&h=315&fit=cover&output=jpg&q=70`;
+
+      const response = await fetch(wsrvUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (response.ok) {
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        const arrayBuffer = await response.arrayBuffer();
+        return res.send(Buffer.from(arrayBuffer));
+      }
+
+      // Fallback: If wsrv.nl fails, fetch raw image directly as fallback
+      console.warn(`wsrv.nl compression failed for article ${id}, falling back to raw image.`);
+      const rawResponse = await fetch(rawImageUrl);
+      if (rawResponse.ok) {
+        const contentType = rawResponse.headers.get('content-type') || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        const arrayBuffer = await rawResponse.arrayBuffer();
+        return res.send(Buffer.from(arrayBuffer));
+      }
+
+      // Ultimate fallback: serve standard Unsplash default image
+      const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+      const arrayBuffer = await fallbackRes.arrayBuffer();
+      res.setHeader('Content-Type', 'image/jpeg');
+      return res.send(Buffer.from(arrayBuffer));
+
+    } catch (err) {
+      console.error('Error serving optimized article image:', err);
       try {
         const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
         const arrayBuffer = await fallbackRes.arrayBuffer();
@@ -1924,8 +2007,9 @@ Follow these rules strictly:
       const absoluteUrl = `${protocol}://${host}${req.originalUrl}`;
 
       // If an article is being requested, fetch national/local news info
+      let article: any = null;
       if (articleId) {
-        const article = await db.getById(articleId);
+        article = await db.getById(articleId, false);
         if (article) {
           title = `${article.title} | ${defaultTitle}`;
           description = article.description || (article.content ? article.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160) + '...' : '');
@@ -1947,37 +2031,34 @@ Follow these rules strictly:
       let structuredSchema = '';
       try {
         let schemaObject: any = {};
-        if (articleId) {
-          const article = await db.getById(articleId);
-          if (article) {
-            schemaObject = {
-              "@context": "https://schema.org",
-              "@type": "NewsArticle",
-              "mainEntityOfPage": {
-                "@type": "WebPage",
-                "@id": absoluteUrl
-              },
-              "headline": article.title,
-              "image": [imageUrl],
-              "datePublished": article.publishDate || new Date().toISOString(),
-              "dateModified": article.publishDate || new Date().toISOString(),
-              "author": {
-                "@type": "Person",
-                "name": article.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी",
-                "jobTitle": "Reporter"
-              },
-              "publisher": {
-                "@type": "NewsMediaOrganization",
-                "name": defaultTitle,
-                "url": `${protocol}://${host}`,
-                "logo": {
-                  "@type": "ImageObject",
-                  "url": `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(settings.channelLogoUrl || 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link')}`
-                }
-              },
-              "description": article.description || description
-            };
-          }
+        if (articleId && article) {
+          schemaObject = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": absoluteUrl
+            },
+            "headline": article.title,
+            "image": [imageUrl],
+            "datePublished": article.publishDate || new Date().toISOString(),
+            "dateModified": article.publishDate || new Date().toISOString(),
+            "author": {
+              "@type": "Person",
+              "name": article.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी",
+              "jobTitle": "Reporter"
+            },
+            "publisher": {
+              "@type": "NewsMediaOrganization",
+              "name": defaultTitle,
+              "url": `${protocol}://${host}`,
+              "logo": {
+                "@type": "ImageObject",
+                "url": `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(settings.channelLogoUrl || 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link')}`
+              }
+            },
+            "description": article.description || description
+          };
         } else {
           schemaObject = {
             "@context": "https://schema.org",
