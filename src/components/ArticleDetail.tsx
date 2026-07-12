@@ -70,16 +70,6 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   // Reading scroll progress tracker
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // Marathi text-to-speech engine controls
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isSpeechPaused, setIsSpeechPaused] = useState(false);
-  const [speakRate, setSpeakRate] = useState(1.1);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const audioPlaylistRef = useRef<string[]>([]);
-  const currentChunkIndexRef = useRef<number>(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   // Comments wall interactive state managers
   const [comments, setComments] = useState<{ id: string; author: string; text: string; date: string; likes: number; likedByMe?: boolean }[]>([]);
   const [newCommentName, setNewCommentName] = useState('');
@@ -259,51 +249,6 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Hook: Speech synthesizer config
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      synthRef.current = window.speechSynthesis;
-      if (typeof window.speechSynthesis.addEventListener === 'function') {
-        const handleVoicesChanged = () => {
-          if (synthRef.current) {
-            console.log('Voices updated asynchronously:', synthRef.current.getVoices().length);
-          }
-        };
-        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
-        window.speechSynthesis.getVoices();
-      }
-    }
-    return () => {
-      if (synthRef.current) {
-        try {
-          synthRef.current.cancel();
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-          audioRef.current.onended = null;
-          audioRef.current.onerror = null;
-        } catch (e) {
-          console.error(e);
-        }
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  // Hook: Listeners to rate changes
-  useEffect(() => {
-    if (isSpeaking && !isSpeechPaused && audioPlaylistRef.current.length > 0) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        playGoogleTtsChunk(currentChunkIndexRef.current);
-      }
-    }
-  }, [speakRate]);
-
   // Hook: Load comments registry
   useEffect(() => {
     try {
@@ -320,227 +265,6 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     }
   }, [articleId]);
 
-  const splitTextIntoChunks = (text: string, maxLen = 150): string[] => {
-    const clean = text.replace(/<[^>]*>/g, '').trim();
-    if (!clean) return [];
-
-    // Split by common Marathi/Hindi and English sentence punctuation
-    const sentences = clean.split(/([।\.\!\?,;\n]+)/);
-    const chunks: string[] = [];
-    let currentChunk = '';
-
-    for (let i = 0; i < sentences.length; i++) {
-      const part = sentences[i];
-      if (!part) continue;
-      
-      if ((currentChunk + part).length > maxLen) {
-        if (currentChunk.trim()) {
-          chunks.push(currentChunk.trim());
-        }
-        currentChunk = part;
-      } else {
-        currentChunk += part;
-      }
-    }
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-    return chunks.filter(c => c.trim().length > 1);
-  };
-
-  const playGoogleTtsChunk = (index: number) => {
-    if (index >= audioPlaylistRef.current.length) {
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-      addToast('वाचन पूर्ण झाले.', 'success');
-      return;
-    }
-
-    currentChunkIndexRef.current = index;
-    const textToSpeak = audioPlaylistRef.current[index];
-
-    try {
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-      }
-
-      // Handle speech rate for Google Translate TTS proxy
-      let speedVal = '1';
-      if (speakRate < 0.9) {
-        speedVal = '0.7';
-      } else if (speakRate > 1.2) {
-        speedVal = '1.3';
-      }
-      
-      const ttsUrl = `/api/tts?text=${encodeURIComponent(textToSpeak)}&speed=${speedVal}`;
-      audioRef.current.src = ttsUrl;
-      audioRef.current.load();
-
-      audioRef.current.onended = () => {
-        playGoogleTtsChunk(index + 1);
-      };
-
-      audioRef.current.onerror = (e) => {
-        console.warn('Google TTS proxy failed, falling back to Web Speech:', e);
-        fallbackToWebSpeech(index);
-      };
-
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          if (index === 0) {
-            addToast('मराठी वाचन सेवा सुरू झाली आहे 🎙️', 'success');
-          }
-        }).catch(err => {
-          console.warn('Google TTS proxy play failed, trying fallback:', err);
-          fallbackToWebSpeech(index);
-        });
-      }
-    } catch (err) {
-      console.error('Failed to run Google TTS proxy, falling back:', err);
-      fallbackToWebSpeech(index);
-    }
-  };
-
-  const fallbackToWebSpeech = (startIndex: number) => {
-    if (!synthRef.current) {
-      addToast('तुमच्या ब्राउझरमध्ये ऑडिओ वाचन सेवा उपलब्ध नाही.', 'error');
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-      return;
-    }
-
-    const remainingText = audioPlaylistRef.current.slice(startIndex).join('. ');
-    if (!remainingText.trim()) {
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-      return;
-    }
-
-    try {
-      synthRef.current.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(remainingText);
-      utterance.rate = speakRate;
-
-      const voices = synthRef.current.getVoices();
-      let selectedVoice = voices.find(v => v.lang.toLowerCase() === 'mr-in' || v.lang.toLowerCase() === 'mr_in');
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase() === 'hi_in');
-      }
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.toLowerCase().includes('in'));
-      }
-
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        utterance.lang = selectedVoice.lang;
-      } else {
-        utterance.lang = 'mr-IN';
-      }
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        setIsSpeechPaused(false);
-      };
-
-      utterance.onerror = (e) => {
-        console.error('Fallback speech synthesis error:', e);
-        setIsSpeaking(false);
-        setIsSpeechPaused(false);
-      };
-
-      utteranceRef.current = utterance;
-      setIsSpeaking(true);
-      setIsSpeechPaused(false);
-      synthRef.current.speak(utterance);
-    } catch (err) {
-      console.error('Web speech synthesis failed:', err);
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-      addToast('ऑडिओ प्लेयर सुरू करता आला नाही.', 'error');
-    }
-  };
-
-  const handleStartSpeech = () => {
-    if (!article) return;
-
-    if (synthRef.current) {
-      try {
-        synthRef.current.cancel();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    if (audioRef.current) {
-      try {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-        audioRef.current.onerror = null;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    const cleanContent = article.content.replace(/<[^>]*>/g, '');
-    const fullText = `${article.title}. ${article.description}. ${cleanContent}`;
-    const chunks = splitTextIntoChunks(fullText, 180);
-
-    if (chunks.length === 0) {
-      addToast('वाचनासाठी मजकूर उपलब्ध नाही.', 'error');
-      return;
-    }
-
-    audioPlaylistRef.current = chunks;
-    currentChunkIndexRef.current = 0;
-    setIsSpeaking(true);
-    setIsSpeechPaused(false);
-
-    playGoogleTtsChunk(0);
-  };
-
-  const handlePauseResumeSpeech = () => {
-    try {
-      if (isSpeechPaused) {
-        if (audioRef.current && audioPlaylistRef.current.length > 0) {
-          audioRef.current.play().catch(e => console.error("Error resuming audio:", e));
-        } else if (synthRef.current) {
-          synthRef.current.resume();
-        }
-        setIsSpeechPaused(false);
-        addToast('वाचन पुन्हा सुरू केले.', 'info');
-      } else {
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        if (synthRef.current) {
-          synthRef.current.pause();
-        }
-        setIsSpeechPaused(true);
-        addToast('वाचन थांबवले.', 'info');
-      }
-    } catch (err) {
-      console.error('Pause/Resume speech error:', err);
-    }
-  };
-
-  const handleStopSpeech = () => {
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-        audioRef.current.onerror = null;
-      }
-      if (synthRef.current) {
-        synthRef.current.cancel();
-      }
-      setIsSpeaking(false);
-      setIsSpeechPaused(false);
-      addToast('मराठी वाचन सेवा बंद करण्यात आली.', 'info');
-    } catch (err) {
-      console.error('Stop speech error:', err);
-    }
-  };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1081,180 +805,109 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       </div>
 
       {/* Premium Reader Operations Dashboard */}
-        <div className="mt-5 mb-2 p-4 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 select-none animate-fade-in">
-          {/* Left Side: Audio Narration Stream Console */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {!isSpeaking ? (
-              <button
-                onClick={handleStartSpeech}
-                className="bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center space-x-2 shadow-3xs cursor-pointer transition-all active:scale-95"
-              >
-                <Volume2 className="h-4.5 w-4.5 text-rose-600 animate-bounce" />
-                <span>बातमी ऐका (मराठी AI आवाज)</span>
-              </button>
-            ) : (
-              <div className="flex items-center space-x-2 bg-slate-800 text-white rounded-xl px-3 py-1.5 border border-slate-700 font-sans shadow-md text-xs sm:text-sm animate-fade-in">
-                <span className="flex h-2 w-2 relative mr-1.2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-extrabold text-xs text-emerald-300">प्लेअर सक्रिय</span>
-                
-                <div className="h-4 w-[1px] bg-slate-700 mx-2"></div>
-                
-                <button 
-                  onClick={handlePauseResumeSpeech}
-                  className="hover:text-rose-400 p-1 font-bold cursor-pointer transition-colors"
-                  title={isSpeechPaused ? "चालू करा" : "थांबवा"}
-                >
-                  {isSpeechPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
-                </button>
-                
-                <button 
-                  onClick={handleStopSpeech}
-                  className="hover:text-rose-500 p-1 font-bold cursor-pointer transition-colors ml-1"
-                  title="बंद करा"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-
-                <div className="h-4 w-[1px] bg-slate-700 mx-2"></div>
-
-                {/* Speed Controller */}
-                <div className="flex items-center space-x-1 font-sans">
-                  <span className="text-[10px] text-slate-400">वेग:</span>
-                  <button 
-                    onClick={() => setSpeakRate(0.85)} 
-                    className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${speakRate === 0.85 ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
-                  >
-                    हळू
-                  </button>
-                  <button 
-                    onClick={() => setSpeakRate(1.1)} 
-                    className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${speakRate === 1.1 ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
-                  >
-                    मूळ
-                  </button>
-                  <button 
-                    onClick={() => setSpeakRate(1.35)} 
-                    className={`px-1.5 py-0.5 rounded-sm text-[10px] font-bold ${speakRate === 1.35 ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
-                  >
-                    वेगवान
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {isSpeaking && (
-              <span className="text-[10px] sm:text-xs text-rose-600 font-bold animate-pulse font-sans flex items-center space-x-1">
-                <Sparkles className="h-3 w-3 animate-spin text-rose-500" />
-                <span>मराठी ऐकू येत आहे...</span>
-              </span>
-            )}
+      <div className="mt-5 mb-2 p-4 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col md:flex-row items-center justify-end gap-4 select-none animate-fade-in">
+        {/* Right Side: Font Size, Serif, and Cozy Theme presets */}
+        <div className="flex flex-wrap items-center gap-3 w-full justify-center md:justify-end">
+          {/* Theme background presets */}
+          <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-xl p-1 shadow-3xs">
+            <button
+              onClick={() => {
+                setReadingTheme('white');
+                addToast('पांढरी पार्श्वभूमी निवडली.', 'info');
+              }}
+              className={`w-6 h-6 rounded-full border bg-white cursor-pointer ${
+                readingTheme === 'white' ? 'border-rose-500 ring-2 ring-rose-200' : 'border-slate-200'
+              }`}
+              title="सामान्य पांढरा"
+            />
+            <button
+              onClick={() => {
+                setReadingTheme('cream');
+                addToast('डोळ्यांसाठी आरामदायी कोझी क्रीम मोड सक्रिय.', 'info');
+              }}
+              className={`w-6 h-6 rounded-full border bg-[#fdfaf6] cursor-pointer ${
+                readingTheme === 'cream' ? 'border-amber-600 ring-2 ring-amber-200' : 'border-slate-200'
+              }`}
+              title="कोझी क्रीम सेपिया (डोळ्यांसाठी आरामदायी)"
+            />
+            <button
+              onClick={() => {
+                setReadingTheme('dark');
+                addToast('गडद नाईट मोड सक्रिय.', 'info');
+              }}
+              className={`w-6 h-6 rounded-full border bg-[#0f172a] cursor-pointer ${
+                readingTheme === 'dark' ? 'border-blue-500 ring-2 ring-blue-900/60' : 'border-slate-200'
+              }`}
+              title="मिटनाईट डार्क"
+            />
           </div>
 
-          {/* Right Side: Font Size, Serif, and Cozy Theme presets */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Theme background presets */}
-            <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-xl p-1 shadow-3xs">
-              <button
-                onClick={() => {
-                  setReadingTheme('white');
-                  addToast('पांढरी पार्श्वभूमी निवडली.', 'info');
-                }}
-                className={`w-6 h-6 rounded-full border bg-white cursor-pointer ${
-                  readingTheme === 'white' ? 'border-rose-500 ring-2 ring-rose-200' : 'border-slate-200'
-                }`}
-                title="सामान्य पांढरा"
-              />
-              <button
-                onClick={() => {
-                  setReadingTheme('cream');
-                  addToast('डोळ्यांसाठी आरामदायी कोझी क्रीम मोड सक्रिय.', 'info');
-                }}
-                className={`w-6 h-6 rounded-full border bg-[#fdfaf6] cursor-pointer ${
-                  readingTheme === 'cream' ? 'border-amber-600 ring-2 ring-amber-200' : 'border-slate-200'
-                }`}
-                title="कोझी क्रीम सेपिया (डोळ्यांसाठी आरामदायी)"
-              />
-              <button
-                onClick={() => {
-                  setReadingTheme('dark');
-                  addToast('गडद नाईट मोड सक्रिय.', 'info');
-                }}
-                className={`w-6 h-6 rounded-full border bg-[#0f172a] cursor-pointer ${
-                  readingTheme === 'dark' ? 'border-blue-500 ring-2 ring-blue-900/60' : 'border-slate-200'
-                }`}
-                title="मिटनाईट डार्क"
-              />
-            </div>
+          <div className="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
 
-            <div className="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
+          {/* Sizing presets control */}
+          <div className="flex items-center space-x-1 bg-white border border-slate-200 p-1 rounded-xl shadow-3xs">
+            <span className="text-[10px] text-slate-400 font-bold px-1 select-none">अक्षर:</span>
+            <button
+              onClick={() => {
+                setFontSize('base');
+                addToast('लहान अक्षर आकार (Small) निवडला.', 'info');
+              }}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                fontSize === 'base' || fontSize === 'sm' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Small
+            </button>
+            <button
+              onClick={() => {
+                setFontSize('lg');
+                addToast('मध्यम अक्षर आकार (Medium) निवडला.', 'info');
+              }}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                fontSize === 'lg' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Medium
+            </button>
+            <button
+              onClick={() => {
+                setFontSize('2xl');
+                addToast('मोठा अक्षर आकार (Large) निवडला.', 'info');
+              }}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                fontSize === '2xl' || fontSize === 'xl' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Large
+            </button>
+          </div>
 
-            {/* Sizing presets control */}
-            <div className="flex items-center space-x-1 bg-white border border-slate-200 p-1 rounded-xl shadow-3xs">
-              <span className="text-[10px] text-slate-400 font-bold px-1 select-none">अक्षर:</span>
-              <button
-                onClick={() => {
-                  setFontSize('base');
-                  addToast('लहान अक्षर आकार (Small) निवडला.', 'info');
-                }}
-                className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  fontSize === 'base' || fontSize === 'sm' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Small
-              </button>
-              <button
-                onClick={() => {
-                  setFontSize('lg');
-                  addToast('मध्यम अक्षर आकार (Medium) निवडला.', 'info');
-                }}
-                className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  fontSize === 'lg' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Medium
-              </button>
-              <button
-                onClick={() => {
-                  setFontSize('2xl');
-                  addToast('मोठा अक्षर आकार (Large) निवडला.', 'info');
-                }}
-                className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  fontSize === '2xl' || fontSize === 'xl' ? 'bg-rose-600 text-white shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Large
-              </button>
-            </div>
+          <div className="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
 
-            <div className="h-5 w-[1px] bg-slate-200 hidden sm:block"></div>
-
-            {/* Serif / Sans font toggle */}
-            <div className="flex bg-white border border-slate-200 p-1 rounded-xl text-xs font-bold shadow-3xs">
-              <button
-                onClick={() => {
-                  setFontStyle('font-sans');
-                  addToast('मॉडर्न सॅन्स फाँट सेट केला.', 'info');
-                }}
-                className={`px-2 py-0.5 rounded-md cursor-pointer ${fontStyle === 'font-sans' ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Sans
-              </button>
-              <button
-                onClick={() => {
-                  setFontStyle('font-serif');
-                  addToast('पारंपारिक वृत्तपत्र सिरिफ फाँट सेट केला.', 'info');
-                }}
-                className={`px-2 py-0.5 rounded-md cursor-pointer ${fontStyle === 'font-serif' ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                title="वृत्तपत्र टाईप सिरिफ फाँट"
-              >
-                Serif
-              </button>
-            </div>
+          {/* Serif / Sans font toggle */}
+          <div className="flex bg-white border border-slate-200 p-1 rounded-xl text-xs font-bold shadow-3xs">
+            <button
+              onClick={() => {
+                setFontStyle('font-sans');
+                addToast('मॉडर्न सॅन्स फाँट सेट केला.', 'info');
+              }}
+              className={`px-2 py-0.5 rounded-md cursor-pointer ${fontStyle === 'font-sans' ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Sans
+            </button>
+            <button
+              onClick={() => {
+                setFontStyle('font-serif');
+                addToast('पारंपारिक वृत्तपत्र सिरिफ फाँट सेट केला.', 'info');
+              }}
+              className={`px-2 py-0.5 rounded-md cursor-pointer ${fontStyle === 'font-serif' ? 'bg-rose-600 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+              title="वृत्तपत्र टाईप सिरिफ फाँट"
+            >
+              Serif
+            </button>
           </div>
         </div>
+      </div>
 
       {/* Ad 1: Top Banner Ad */}
       {siteSettings?.detailAd1Enabled && (
@@ -1488,7 +1141,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       {/* Main Body Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Side Social bar (Floating styling) */}
-        <div className="lg:col-span-1 flex lg:flex-col items-center justify-start gap-4 border-b lg:border-b-0 pb-6 lg:pb-0 border-slate-100 lg:sticky lg:top-24 h-fit">
+        <div className="lg:col-span-1 flex flex-wrap lg:flex-col items-center justify-center lg:justify-start gap-2.5 sm:gap-4 border-b lg:border-b-0 pb-6 lg:pb-0 border-slate-100 lg:sticky lg:top-24 h-fit">
           
           {/* Read Later Button */}
           <button

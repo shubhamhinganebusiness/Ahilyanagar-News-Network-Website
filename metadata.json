@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Remix: MajhaPatra - Marathi News Portal",
-  "description": "माझापत्र - ताज्या मराठी बातम्या, राष्ट्रीय, क्रीडा, मनोरंजन आणि व्यवसाय क्षेत्रातून",
+  "name": "अहिल्यानगर न्यूज नेटवर्क",
+  "description": "अहिल्यानगर न्यूज नेटवर्क - ताज्या मराठी बातम्या, राष्ट्रीय, क्रीडा, मनोरंजन आणि व्यवसाय क्षेत्रातून",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

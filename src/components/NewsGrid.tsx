@@ -394,7 +394,7 @@ export default function NewsGrid({
                   </div>
                   <div className="flex items-center space-x-1">
                     <Eye className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{featuredArticle.views} Views</span>
+                    <span>{featuredArticle.views || 0} वेळा वाचले</span>
                   </div>
                 </div>
               </div>

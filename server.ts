@@ -1826,7 +1826,7 @@ Follow these rules strictly:
         const article = await db.getById(articleId);
         if (article) {
           title = `${article.title} | ${defaultTitle}`;
-          description = article.description || '';
+          description = article.description || (article.content ? article.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160) + '...' : '');
           imageUrl = article.imageURL || imageUrl;
         }
       }

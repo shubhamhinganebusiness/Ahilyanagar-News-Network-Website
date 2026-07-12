@@ -714,6 +714,11 @@ export class PortalDatabase {
 
   async getSettings(): Promise<SiteCustomization> {
     const local = this.getLocalSettings();
+    // Force user branding requests
+    local.channelName = 'अहिल्यानगर न्यूज नेटवर्क';
+    local.channelLogoAccentText = 'अहिल्यानगर न्यूज नेटवर्क';
+    local.channelLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
+    
     if (this.useFallback) {
       return local;
     }
@@ -762,10 +767,10 @@ export class PortalDatabase {
           }
         }
 
-        // Force the new local logo if the current one is empty, placeholder, or broken
-        if (!merged.channelLogoUrl || merged.channelLogoUrl.includes('magnific.com') || merged.channelLogoUrl === '/logo.jpg') {
-          merged.channelLogoUrl = '/Images/logo.jpg';
-        }
+        // Force the new local logo and title as requested by user
+        merged.channelName = 'अहिल्यानगर न्यूज नेटवर्क';
+        merged.channelLogoAccentText = 'अहिल्यानगर न्यूज नेटवर्क';
+        merged.channelLogoUrl = 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link';
         
         // Sync local-first changes (like uploaded logo URL) back to Firestore if they differ
         const isDifferent = JSON.stringify(firestoreData) !== JSON.stringify(merged);
