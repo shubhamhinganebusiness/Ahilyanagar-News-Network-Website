@@ -618,6 +618,94 @@ Follow these rules strictly:
     }
   });
 
+  // Serve the article's image as a direct binary image stream for social crawler preview compatibility
+  app.get('/api/news/:id/image', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const article = await db.getById(id);
+      
+      if (!article || !article.imageURL) {
+        // Serve a default fallback image
+        const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+        const arrayBuffer = await fallbackRes.arrayBuffer();
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(Buffer.from(arrayBuffer));
+      }
+
+      const imageUrl = article.imageURL.trim();
+
+      // Case 1: Base64 data URL
+      if (imageUrl.startsWith('data:image/')) {
+        const matches = imageUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const contentType = matches[1];
+          const base64Data = matches[2];
+          const buffer = Buffer.from(base64Data, 'base64');
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          return res.send(buffer);
+        }
+      }
+
+      // Case 2: Google Drive URL (convert/resolve to lh3 direct CDN or use direct proxy)
+      const fileDMatch = imageUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      const ucMatch = imageUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const driveId = (fileDMatch && fileDMatch[1]) || (ucMatch && ucMatch[1]);
+
+      if (driveId) {
+        const targetUrl = `https://lh3.googleusercontent.com/d/${driveId}`;
+        const response = await fetch(targetUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+          }
+        });
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          const arrayBuffer = await response.arrayBuffer();
+          return res.send(Buffer.from(arrayBuffer));
+        }
+      }
+
+      // Case 3: Standard URL
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        const response = await fetch(imageUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+          }
+        });
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          const arrayBuffer = await response.arrayBuffer();
+          return res.send(Buffer.from(arrayBuffer));
+        }
+      }
+
+      // Fallback: If nothing else matched or fetch failed, serve fallback image
+      const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+      const arrayBuffer = await fallbackRes.arrayBuffer();
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(arrayBuffer));
+
+    } catch (err) {
+      console.error('Error serving article image:', err);
+      // Fallback to avoid breaking layout
+      try {
+        const fallbackRes = await fetch('https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80');
+        const arrayBuffer = await fallbackRes.arrayBuffer();
+        res.setHeader('Content-Type', 'image/jpeg');
+        return res.send(Buffer.from(arrayBuffer));
+      } catch (fbErr) {
+        return res.status(500).send('Internal Server Error');
+      }
+    }
+  });
+
   // GET /api/analytics -> get traffic analytics (admin only)
   app.get('/api/analytics', adminAuth, async (req, res) => {
     try {
@@ -1821,27 +1909,28 @@ Follow these rules strictly:
       let title = defaultTitle;
       let description = defaultDesc;
 
+      // Ensure imageUrl is absolute and properly proxied to avoid user-agent/crawler issues
+      const host = req.get('host') || 'majhapatra.com';
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const absoluteUrl = `${protocol}://${host}${req.originalUrl}`;
+
       // If an article is being requested, fetch national/local news info
       if (articleId) {
         const article = await db.getById(articleId);
         if (article) {
           title = `${article.title} | ${defaultTitle}`;
           description = article.description || (article.content ? article.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160) + '...' : '');
-          imageUrl = article.imageURL || imageUrl;
+          // Point dynamically to our image streaming endpoint so crawlers always get a raw binary stream
+          imageUrl = `${protocol}://${host}/api/news/${articleId}/image`;
         }
-      }
-
-      // Ensure imageUrl is absolute and properly proxied if Google Drive to avoid user-agent/crawler issues
-      const host = req.get('host') || 'majhapatra.com';
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-      const absoluteUrl = `${protocol}://${host}${req.originalUrl}`;
-
-      if (imageUrl && (imageUrl.includes('drive.google.com') || imageUrl.includes('docs.google.com') || imageUrl.includes('lh3.googleusercontent.com'))) {
-        imageUrl = `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
       } else {
-        imageUrl = resolveDriveUrl(imageUrl);
-        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
-          imageUrl = `${protocol}://${host}${imageUrl}`;
+        if (imageUrl && (imageUrl.includes('drive.google.com') || imageUrl.includes('docs.google.com') || imageUrl.includes('lh3.googleusercontent.com'))) {
+          imageUrl = `${protocol}://${host}/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+        } else {
+          imageUrl = resolveDriveUrl(imageUrl);
+          if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
+            imageUrl = `${protocol}://${host}${imageUrl}`;
+          }
         }
       }
 
