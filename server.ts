@@ -421,8 +421,8 @@ Follow these rules strictly:
       const id = (fileDMatch && fileDMatch[1]) || (ucMatch && ucMatch[1]);
 
       if (id) {
-        // Fetch raw file content using direct download API
-        targetUrl = `https://docs.google.com/uc?export=download&id=${id}`;
+        // Fetch raw file content using direct high-speed CDN API (extremely robust against download limits/warnings)
+        targetUrl = `https://lh3.googleusercontent.com/d/${id}`;
       }
 
       const response = await fetch(targetUrl, {
@@ -1911,7 +1911,16 @@ Follow these rules strictly:
 
       // Ensure imageUrl is absolute and properly proxied to avoid user-agent/crawler issues
       const host = req.get('host') || 'majhapatra.com';
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      // Social crawlers like WhatsApp require images to use secure HTTPS URLs to generate rich link previews successfully.
+      // Since local development runs on HTTP but all production/staging environments use HTTPS, we default
+      // to 'https' unless accessing localhost or direct internal IP addresses.
+      let protocol = 'https';
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      if (typeof forwardedProto === 'string') {
+        protocol = forwardedProto.split(',')[0].trim();
+      } else if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0') || host.includes('192.168.')) {
+        protocol = 'http';
+      }
       const absoluteUrl = `${protocol}://${host}${req.originalUrl}`;
 
       // If an article is being requested, fetch national/local news info
@@ -2025,9 +2034,9 @@ Follow these rules strictly:
 
       // Remove any existing Open Graph, Twitter, description, and title tags to prevent duplicates
       html = html.replace(/<title>[^]*?<\/title>/gi, '');
-      html = html.replace(/<meta\s+(?:property|name)="og:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '');
-      html = html.replace(/<meta\s+(?:property|name)="twitter:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '');
-      html = html.replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/gi, '');
+      html = html.replace(/<meta\s+[^>]*?(?:property|name)="og:[^"]*"[^>]*?\/?>/gi, '');
+      html = html.replace(/<meta\s+[^>]*?(?:property|name)="twitter:[^"]*"[^>]*?\/?>/gi, '');
+      html = html.replace(/<meta\s+[^>]*?name="description"[^>]*?\/?>/gi, '');
 
       // Inject new meta tags and title immediately inside <head>
       html = html.replace(/<head>/i, `<head>${metaTags}`);
