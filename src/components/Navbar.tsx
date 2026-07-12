@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
-import { Newspaper, Search, Menu, X, ShieldAlert, Calendar, LayoutGrid, Sun, Activity, Bell, RefreshCw, User, BarChart3, Vote, Shield } from 'lucide-react';
+import { Newspaper, Search, Menu, X, ShieldAlert, Calendar, LayoutGrid, Sun, Activity, Bell, RefreshCw, User, BarChart3, Vote, Shield, Facebook, Twitter, Instagram, Youtube, MessageSquare, Send } from 'lucide-react';
 import { CategoryType, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 
 // Helper to convert English numerals to Marathi numerals
@@ -206,6 +206,41 @@ export default function Navbar({
               <Calendar className="h-3.5 w-3.5 text-rose-600" />
               <span>{getMarathiDate()}</span>
             </div>
+            {/* Social Media Links in Navbar Topbar */}
+            {(siteSettings?.facebookUrl || siteSettings?.twitterUrl || siteSettings?.instagramUrl || siteSettings?.youtubeUrl || siteSettings?.whatsappUrl || siteSettings?.telegramUrl) && (
+              <div className="hidden lg:flex items-center space-x-2 border-l border-rose-200 pl-3">
+                {siteSettings.facebookUrl && (
+                  <a href={siteSettings.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="Facebook">
+                    <Facebook className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {siteSettings.twitterUrl && (
+                  <a href={siteSettings.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="Twitter">
+                    <Twitter className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {siteSettings.instagramUrl && (
+                  <a href={siteSettings.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="Instagram">
+                    <Instagram className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {siteSettings.youtubeUrl && (
+                  <a href={siteSettings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="YouTube">
+                    <Youtube className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {siteSettings.whatsappUrl && (
+                  <a href={`https://wa.me/${siteSettings.whatsappUrl.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="WhatsApp">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {siteSettings.telegramUrl && (
+                  <a href={siteSettings.telegramUrl} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-rose-600 transition-colors" title="Telegram">
+                    <Send className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
             <span className="text-rose-250/50 hidden sm:inline">|</span>
             <button
               onClick={() => onToggleWeather(true)}
@@ -408,26 +443,27 @@ export default function Navbar({
           <div className="flex justify-start md:justify-center flex-1 min-w-0 mr-2 md:mr-0">
             <div
               onClick={onNavigateToHome}
-              className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer select-none group focus:outline-hidden transition-all duration-200 hover:scale-[1.01] min-w-0"
+              className="flex flex-col items-center cursor-pointer select-none group focus:outline-hidden transition-all duration-200 hover:scale-[1.01] min-w-0 w-full"
             >
-              {/* Refined Shield Logo with golden ring/shadow effect */}
-              {siteSettings.channelLogoUrl ? (
-                <div className="shrink-0 relative h-12 w-12 sm:h-14 sm:w-14 rounded-full overflow-hidden border-2 border-rose-600 shadow-md sm:shadow-lg shadow-rose-200/50 hover:scale-105 transition-all duration-300">
-                  <img 
-                    src={resolveDriveUrl(siteSettings.channelLogoUrl)} 
-                    alt={siteSettings.channelName || 'Logo'} 
-                    className="h-full w-full object-cover relative z-10" 
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-              ) : (
-                <div className="bg-gradient-to-br from-rose-600 via-rose-700 to-red-800 text-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:from-rose-500 group-hover:to-red-700 transition-all duration-300 shadow-md sm:shadow-lg shadow-rose-200/50 ring-2 sm:ring-4 ring-rose-50 border border-rose-100 shrink-0 relative overflow-hidden flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10 opacity-60"></div>
-                  <Newspaper className="h-5 w-5 sm:h-7 sm:w-7 relative z-10 drop-shadow-sm transform group-hover:rotate-1 transition-transform" />
-                </div>
-              )}
-              
-              <div className="text-left flex flex-col justify-center min-w-0">
+              {/* Row for Logo and Name */}
+              <div className="flex items-center space-x-2.5 sm:space-x-3.5 min-w-0">
+                {/* Refined Shield Logo with golden ring/shadow effect */}
+                {siteSettings.channelLogoUrl ? (
+                  <div className="shrink-0 relative h-12 w-12 sm:h-14 sm:w-14 rounded-full overflow-hidden border-2 border-rose-600 shadow-md sm:shadow-lg shadow-rose-200/50 hover:scale-105 transition-all duration-300">
+                    <img 
+                      src={resolveDriveUrl(siteSettings.channelLogoUrl)} 
+                      alt={siteSettings.channelName || 'Logo'} 
+                      className="h-full w-full object-cover relative z-10" 
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-rose-600 via-rose-700 to-red-800 text-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl group-hover:from-rose-500 group-hover:to-red-700 transition-all duration-300 shadow-md sm:shadow-lg shadow-rose-200/50 ring-2 sm:ring-4 ring-rose-50 border border-rose-100 shrink-0 relative overflow-hidden flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10 opacity-60"></div>
+                    <Newspaper className="h-5 w-5 sm:h-7 sm:w-7 relative z-10 drop-shadow-sm transform group-hover:rotate-1 transition-transform" />
+                  </div>
+                )}
+                
                 <h1 className="text-lg min-[360px]:text-xl min-[400px]:text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight font-sans leading-tight flex items-center select-none whitespace-nowrap">
                   <span className="text-rose-600 relative inline-block drop-shadow-xs whitespace-nowrap">
                     {siteSettings.channelLogoAccentText || 'माझापत्र'}
@@ -435,15 +471,16 @@ export default function Navbar({
                     <span className="absolute bottom-0 left-0 w-full h-[2px] sm:h-[3px] bg-gradient-to-r from-rose-500 to-rose-700 rounded-full"></span>
                   </span>
                 </h1>
-                
-                {/* Elegant gold/crimson Marathi Tagline layout */}
-                <span className="inline-flex items-center mt-1 select-none overflow-hidden truncate">
-                  <span className="h-1 w-1 bg-amber-500 rounded-full mr-1 sm:mr-1.5 animate-pulse shrink-0"></span>
-                  <p className="text-[9px] sm:text-[11px] text-slate-500 font-extrabold tracking-widest uppercase font-mono truncate">
-                    {siteSettings.channelTagline || 'माझा महाराष्ट्र, माझे पत्र'}
-                  </p>
-                </span>
               </div>
+              
+              {/* Elegant gold/crimson Marathi Tagline layout - centered on all screens */}
+              <span className="inline-flex items-center mt-2 select-none overflow-hidden truncate justify-center w-full">
+                <span className="h-1 w-1 bg-amber-500 rounded-full mr-1.5 animate-pulse shrink-0"></span>
+                <p className="text-[10px] sm:text-[12px] text-slate-500 font-extrabold tracking-widest uppercase font-sans truncate text-center">
+                  {siteSettings.channelTagline || 'माझा महाराष्ट्र, माझे पत्र'}
+                </p>
+                <span className="h-1 w-1 bg-amber-500 rounded-full ml-1.5 animate-pulse shrink-0"></span>
+              </span>
             </div>
           </div>
 

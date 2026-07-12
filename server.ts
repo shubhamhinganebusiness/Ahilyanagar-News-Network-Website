@@ -836,7 +836,7 @@ Follow these rules strictly:
         return res.status(400).json({ error: 'कृपया सर्व आवश्यक फॉर्म फील्ड्स पूर्ण करा.' });
       }
 
-      const validCategories = ['राष्ट्रीय', 'राज्य', 'शहर', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
+      const validCategories = ['राष्ट्रीय', 'राज्य', 'शहर', 'राजकीय', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
       if (!validCategories.includes(category)) {
         return res.status(400).json({ error: 'अवैध श्रेणी निवडली आहे.' });
       }
@@ -883,7 +883,7 @@ Follow these rules strictly:
         return res.status(400).json({ error: 'कृपया सर्व आवश्यक फॉर्म फील्ड्स पूर्ण करा.' });
       }
 
-      const validCategories = ['राष्ट्रीय', 'राज्य', 'शहर', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
+      const validCategories = ['राष्ट्रीय', 'राज्य', 'शहर', 'राजकीय', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
       if (!validCategories.includes(category)) {
         return res.status(400).json({ error: 'अवैध श्रेणी निवडली आहे.' });
       }
@@ -1042,16 +1042,16 @@ Follow these rules strictly:
 
   // 4.5 POST /api/upload -> upload image from device (admin only)
   // Supports alternative routes /api/media-store and /api/save-image to bypass Hostinger / ModSecurity keyword restrictions
-  app.post(['/api/upload', '/api/media-store', '/api/save-image'], adminAuth, async (req, res) => {
+  const handleDeviceUploadEndpoint = async (req: express.Request, res: express.Response) => {
     try {
-      const { name, data, targetField } = req.body;
+      const { name, data, targetField, contentType: bodyContentType } = req.body;
       if (!name || !data) {
         return res.status(400).json({ error: 'फाईल नाव आणि डेटा आवश्यक आहे.' });
       }
 
       // Convert base64 data to binary buffer
       let base64Data = '';
-      let contentType = 'image/jpeg';
+      let contentType = bodyContentType || 'image/jpeg';
 
       const base64Marker = ';base64,';
       const markerIndex = data.indexOf(base64Marker);
@@ -1277,7 +1277,11 @@ Follow these rules strictly:
       console.error('Upload Error:', err);
       res.status(500).json({ error: 'इमेज अपलोड करता आली नाही.' });
     }
-  });
+  };
+
+  app.post('/api/upload', adminAuth, handleDeviceUploadEndpoint);
+  app.post('/api/media-store', adminAuth, handleDeviceUploadEndpoint);
+  app.post('/api/save-image', adminAuth, handleDeviceUploadEndpoint);
 
   // 5. GET /api/settings -> get site customization settings
   app.get('/api/settings', async (req, res) => {
@@ -2013,8 +2017,26 @@ Follow these rules strictly:
         if (article) {
           title = `${article.title} | ${defaultTitle}`;
           description = article.description || (article.content ? article.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160) + '...' : '');
-          // Point dynamically to our image streaming endpoint so crawlers always get a raw binary stream
-          imageUrl = `${protocol}://${host}/api/news/${articleId}/image`;
+          
+          // Let's resolve the raw image URL to use a high-speed CDN directly where possible
+          const rawUrl = article.imageURL ? article.imageURL.trim() : '';
+          const fileDMatch = rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+          const ucMatch = rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+          const driveId = (fileDMatch && fileDMatch[1]) || (ucMatch && ucMatch[1]);
+          
+          if (driveId) {
+            // Google's direct CDN links are incredibly fast (sub-50ms) and optimized, perfect for WhatsApp
+            imageUrl = `https://lh3.googleusercontent.com/d/${driveId}`;
+          } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+            imageUrl = rawUrl;
+          } else if (rawUrl.startsWith('/uploads/') || rawUrl.startsWith('/Images/') || rawUrl.startsWith('/images/')) {
+            imageUrl = `${protocol}://${host}${rawUrl}`;
+          } else if (rawUrl.startsWith('data:image/')) {
+            // Base64 needs to be served as an image endpoint
+            imageUrl = `${protocol}://${host}/api/news/${articleId}/image`;
+          } else {
+            imageUrl = `${protocol}://${host}/api/news/${articleId}/image`;
+          }
         }
       } else {
         if (imageUrl && (imageUrl.includes('drive.google.com') || imageUrl.includes('docs.google.com') || imageUrl.includes('lh3.googleusercontent.com'))) {
@@ -2082,6 +2104,12 @@ Follow these rules strictly:
       }
 
       // Build target open graph and meta tag strings
+      const ogType = article ? 'article' : 'website';
+      const articleMeta = article ? `
+    <meta property="article:published_time" content="${escapeHtml(article.publishDate || new Date().toISOString())}" />
+    <meta property="article:author" content="${escapeHtml(article.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी")}" />
+    <meta property="article:section" content="${escapeHtml(article.category || "बातम्या")}" />` : '';
+
       const metaTags = `
     <!-- HTML Meta Tags -->
     <title>${escapeHtml(title)}</title>
@@ -2094,15 +2122,16 @@ Follow these rules strictly:
     <meta itemprop="image" content="${escapeHtml(imageUrl)}" />
 
     <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
-    <meta property="og:type" content="article" />
+    <meta property="og:type" content="${ogType}" />
     <meta property="og:url" content="${escapeHtml(absoluteUrl)}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:image" content="${escapeHtml(imageUrl)}" />
+    <meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:site_name" content="${escapeHtml(defaultTitle)}" />
+    <meta property="og:site_name" content="${escapeHtml(defaultTitle)}" />${articleMeta}
 
     <!-- Twitter / X Cards -->
     <meta name="twitter:card" content="summary_large_image" />

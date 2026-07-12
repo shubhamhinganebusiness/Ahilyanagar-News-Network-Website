@@ -29,6 +29,18 @@ export function safeISOString(date: any): string {
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
+// Check if scheduled date is in the past or current time (handles timezone mismatch)
+export function isPastOrCurrentScheduledDate(scheduledPublishDate: string): boolean {
+  if (!scheduledPublishDate) return true;
+  let targetStr = scheduledPublishDate;
+  // If no timezone/Z indicator is present, assume Indian Standard Time (IST, +05:30) for this Marathi portal.
+  if (!scheduledPublishDate.includes('Z') && !/[+-]\d{2}:\d{2}$/.test(scheduledPublishDate)) {
+    targetStr = scheduledPublishDate + '+05:30';
+  }
+  const date = new Date(targetStr);
+  return isNaN(date.getTime()) ? true : date.getTime() <= Date.now();
+}
+
 // Seeded Marathi news articles in correct form
 const preSeededArticles: News[] = [
   {
@@ -249,7 +261,13 @@ const defaultSettings: SiteCustomization = {
       email: 'sports@majhapatra.com'
     }
   ],
-  enableFirebaseStorage: false
+  enableFirebaseStorage: false,
+  facebookUrl: 'https://facebook.com',
+  twitterUrl: 'https://twitter.com',
+  instagramUrl: 'https://instagram.com',
+  youtubeUrl: 'https://youtube.com',
+  whatsappUrl: '',
+  telegramUrl: ''
 };
 
 export class PortalDatabase {
@@ -424,7 +442,7 @@ export class PortalDatabase {
     if (this.useFallback) {
       let list = this.getLocalNews();
       if (!includeHidden) {
-        list = list.filter(item => !item.hidden && (!item.scheduledPublishDate || new Date(item.scheduledPublishDate).getTime() <= Date.now()));
+        list = list.filter(item => !item.hidden && isPastOrCurrentScheduledDate(item.scheduledPublishDate));
       }
       if (category && category !== 'सर्व') {
         list = list.filter(item => item.category === category);
@@ -474,7 +492,7 @@ export class PortalDatabase {
 
       // Filter in-memory to prevent complex Firestore compound index errors
       if (!includeHidden) {
-        list = list.filter(item => !item.hidden && (!item.scheduledPublishDate || new Date(item.scheduledPublishDate).getTime() <= Date.now()));
+        list = list.filter(item => !item.hidden && isPastOrCurrentScheduledDate(item.scheduledPublishDate));
       }
       if (category && category !== 'सर्व') {
         list = list.filter(item => item.category === category);

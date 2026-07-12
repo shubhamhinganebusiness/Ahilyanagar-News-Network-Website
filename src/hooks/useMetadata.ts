@@ -13,6 +13,13 @@ export function useMetadata(activeArticle: News | null, siteSettings: SiteCustom
       element.setAttribute('content', contentValue || '');
     };
 
+    const removeMetaTag = (attributeName: string, attributeValue: string) => {
+      const element = document.querySelector(`meta[${attributeName}="${attributeValue}"]`);
+      if (element) {
+        element.remove();
+      }
+    };
+
     if (activeArticle) {
       const cleanDesc = activeArticle.description || activeArticle.content.replace(/<[^>]*>/g, '').slice(0, 150);
       const articleImage = activeArticle.imageURL ? resolveDriveUrl(activeArticle.imageURL) : '';
@@ -30,9 +37,18 @@ export function useMetadata(activeArticle: News | null, siteSettings: SiteCustom
       updateMetaTag('property', 'og:title', activeArticle.title);
       updateMetaTag('property', 'og:description', cleanDesc);
       updateMetaTag('property', 'og:image', articleImage);
+      updateMetaTag('property', 'og:image:secure_url', articleImage);
+      updateMetaTag('property', 'og:image:width', '1200');
+      updateMetaTag('property', 'og:image:height', '630');
+      updateMetaTag('property', 'og:image:type', 'image/jpeg');
       updateMetaTag('property', 'og:url', window.location.href);
       updateMetaTag('property', 'og:type', 'article');
       updateMetaTag('property', 'og:site_name', siteSettings.channelName || 'अहिल्यानगर न्यूज नेटवर्क');
+
+      // Article specific metadata
+      updateMetaTag('property', 'article:published_time', activeArticle.publishDate || new Date().toISOString());
+      updateMetaTag('property', 'article:author', activeArticle.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी");
+      updateMetaTag('property', 'article:section', activeArticle.category || "बातम्या");
 
       // Twitter Card dynamic tags
       updateMetaTag('name', 'twitter:card', 'summary_large_image');
@@ -55,9 +71,18 @@ export function useMetadata(activeArticle: News | null, siteSettings: SiteCustom
       updateMetaTag('property', 'og:title', siteName);
       updateMetaTag('property', 'og:description', footerAbout);
       updateMetaTag('property', 'og:image', logoUrl);
+      updateMetaTag('property', 'og:image:secure_url', logoUrl);
+      updateMetaTag('property', 'og:image:width', '1200');
+      updateMetaTag('property', 'og:image:height', '630');
+      updateMetaTag('property', 'og:image:type', 'image/jpeg');
       updateMetaTag('property', 'og:url', window.location.origin);
       updateMetaTag('property', 'og:type', 'website');
       updateMetaTag('property', 'og:site_name', siteName);
+
+      // Clean up article specific metadata
+      removeMetaTag('property', 'article:published_time');
+      removeMetaTag('property', 'article:author');
+      removeMetaTag('property', 'article:section');
 
       // Twitter Card tags
       updateMetaTag('name', 'twitter:card', 'summary_large_image');

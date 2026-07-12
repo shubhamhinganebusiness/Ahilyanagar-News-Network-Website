@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Newspaper, Mail, Phone, MapPin, Shield, Info, Heart, Send, Bell } from 'lucide-react';
+import { Newspaper, Mail, Phone, MapPin, Shield, Info, Heart, Send, Bell, Facebook, Twitter, Instagram, Youtube, MessageSquare } from 'lucide-react';
 import { SiteCustomization } from '../types';
 
 interface FooterProps {
@@ -68,6 +68,85 @@ export default function Footer({ siteSettings, addToast }: FooterProps) {
             <p className="text-sm leading-relaxed opacity-85">
               {siteSettings?.footerAbout || 'माझापत्र (MajhaPatra) हे महाराष्ट्रातील अग्रगण्य मराठी न्यूज पोर्टल आहे. आम्ही आपल्यापर्यंत राजकीय, सामाजिक, क्रीडा, मनोरंजन आणि आर्थिक क्षेत्रातील ताज्या व विश्वासार्ह घडामोडी तत्परतेने पोहोचवतो.'}
             </p>
+            {/* Social Media Links */}
+            {(siteSettings?.facebookUrl || siteSettings?.twitterUrl || siteSettings?.instagramUrl || siteSettings?.youtubeUrl || siteSettings?.whatsappUrl || siteSettings?.telegramUrl) && (
+              <div className="pt-3">
+                <div className="flex flex-wrap gap-2.5">
+                  {siteSettings.facebookUrl && (
+                    <a
+                      href={siteSettings.facebookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="Facebook"
+                      style={{ color: footerText }}
+                    >
+                      <Facebook className="h-4 w-4" />
+                    </a>
+                  )}
+                  {siteSettings.twitterUrl && (
+                    <a
+                      href={siteSettings.twitterUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="Twitter / X"
+                      style={{ color: footerText }}
+                    >
+                      <Twitter className="h-4 w-4" />
+                    </a>
+                  )}
+                  {siteSettings.instagramUrl && (
+                    <a
+                      href={siteSettings.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="Instagram"
+                      style={{ color: footerText }}
+                    >
+                      <Instagram className="h-4 w-4" />
+                    </a>
+                  )}
+                  {siteSettings.youtubeUrl && (
+                    <a
+                      href={siteSettings.youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="YouTube"
+                      style={{ color: footerText }}
+                    >
+                      <Youtube className="h-4 w-4" />
+                    </a>
+                  )}
+                  {siteSettings.whatsappUrl && (
+                    <a
+                      href={`https://wa.me/${siteSettings.whatsappUrl.replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="WhatsApp"
+                      style={{ color: footerText }}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </a>
+                  )}
+                  {siteSettings.telegramUrl && (
+                    <a
+                      href={siteSettings.telegramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-rose-600 hover:text-white p-2 rounded-full transition-all duration-200 hover:-translate-y-1 shadow-xs flex items-center justify-center border border-slate-700/50"
+                      title="Telegram"
+                      style={{ color: footerText }}
+                    >
+                      <Send className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Quick Links / Categories */}

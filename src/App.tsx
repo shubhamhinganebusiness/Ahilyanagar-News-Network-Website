@@ -257,7 +257,7 @@ export default function App() {
   };
   const [siteSettings, setSiteSettings] = useState<SiteCustomization>(getInitialSettings);
 
-  const activeArticle = selectedArticleId ? newsList.find(n => n.id === selectedArticleId) || null : null;
+  const activeArticle = selectedArticleId ? newsList.find(n => n._id === selectedArticleId || (n as any).id === selectedArticleId) || null : null;
   useMetadata(activeArticle, siteSettings);
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -309,6 +309,7 @@ export default function App() {
       
       // Build parameters if they fit backend endpoints
       const params = new URLSearchParams();
+      params.append('_t', Date.now().toString());
       if (currentCategory !== 'सर्व') {
         params.append('category', currentCategory);
       }

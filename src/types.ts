@@ -126,6 +126,14 @@ export interface SiteCustomization {
   googleAccessToken?: string;
   googleRefreshToken?: string;
   enableFirebaseStorage?: boolean;
+
+  // Social Links
+  facebookUrl?: string;
+  twitterUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+  whatsappUrl?: string;
+  telegramUrl?: string;
 }
 
 export interface SiteActivityLog {

@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage } from '../utils/safeStorage';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X } from 'lucide-react';
+import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X, Share2, Youtube, MessageSquare, Send } from 'lucide-react';
 import { News, CategoryType, SiteCustomization, BrandAdSlide, resolveDriveUrl } from '../types';
 import ImageLivePreview from './ImagePreview';
 import { getYouTubeId } from './LiveTvSection';
@@ -522,6 +522,14 @@ export default function AdminPanel({
   const [custFooterLink5Url, setCustFooterLink5Url] = useState(siteSettings?.footerLink5Url || '');
   const [custFooterLink6Text, setCustFooterLink6Text] = useState(siteSettings?.footerLink6Text || '');
   const [custFooterLink6Url, setCustFooterLink6Url] = useState(siteSettings?.footerLink6Url || '');
+
+  // Social Links states
+  const [custFacebookUrl, setCustFacebookUrl] = useState(siteSettings?.facebookUrl || '');
+  const [custTwitterUrl, setCustTwitterUrl] = useState(siteSettings?.twitterUrl || '');
+  const [custInstagramUrl, setCustInstagramUrl] = useState(siteSettings?.instagramUrl || '');
+  const [custYoutubeUrl, setCustYoutubeUrl] = useState(siteSettings?.youtubeUrl || '');
+  const [custWhatsappUrl, setCustWhatsappUrl] = useState(siteSettings?.whatsappUrl || '');
+  const [custTelegramUrl, setCustTelegramUrl] = useState(siteSettings?.telegramUrl || '');
 
   // Ad Banner and Live TV states
   const [adBannerEnabled, setAdBannerEnabled] = useState<boolean>(() => siteSettings?.adBannerEnabled !== false);
@@ -1086,6 +1094,20 @@ export default function AdminPanel({
             headers['X-Google-Access-Token'] = googleAccessToken;
           }
 
+          // Strip the data-URI prefix (e.g., data:image/jpeg;base64,) to bypass cPanel / Hostinger ModSecurity firewalls
+          let rawBase64 = base64Data;
+          let contentType = 'image/jpeg';
+          const base64Marker = ';base64,';
+          const markerIndex = base64Data.indexOf(base64Marker);
+          if (markerIndex !== -1) {
+            rawBase64 = base64Data.substring(markerIndex + base64Marker.length);
+            const prefix = base64Data.substring(0, markerIndex);
+            const mimeMatch = prefix.match(/^data:([^;]+)/);
+            if (mimeMatch) {
+              contentType = mimeMatch[1];
+            }
+          }
+
           setUploadProgress(75);
           setUploadStatusText('चित्र सर्व्हर/गुगल ड्राईव्हवर सुरक्षित अपलोड केले जात आहे...');
 
@@ -1098,7 +1120,8 @@ export default function AdminPanel({
               headers,
               body: JSON.stringify({
                 name: file.name,
-                data: base64Data,
+                data: rawBase64,
+                contentType,
                 targetField
               })
             });
@@ -1118,7 +1141,8 @@ export default function AdminPanel({
                 headers,
                 body: JSON.stringify({
                   name: file.name,
-                  data: base64Data,
+                  data: rawBase64,
+                  contentType,
                   targetField
                 })
               });
@@ -1138,7 +1162,8 @@ export default function AdminPanel({
                 headers,
                 body: JSON.stringify({
                   name: file.name,
-                  data: base64Data,
+                  data: rawBase64,
+                  contentType,
                   targetField
                 })
               });
@@ -1286,6 +1311,13 @@ export default function AdminPanel({
       setCustFooterLink5Url(siteSettings.footerLink5Url || '');
       setCustFooterLink6Text(siteSettings.footerLink6Text || '');
       setCustFooterLink6Url(siteSettings.footerLink6Url || '');
+      setCustFacebookUrl(siteSettings.facebookUrl || '');
+      setCustTwitterUrl(siteSettings.twitterUrl || '');
+      setCustInstagramUrl(siteSettings.instagramUrl || '');
+      setCustYoutubeUrl(siteSettings.youtubeUrl || '');
+      setCustWhatsappUrl(siteSettings.whatsappUrl || '');
+      setCustTelegramUrl(siteSettings.telegramUrl || '');
+
       if (siteSettings.authorProfiles) {
         setAuthorProfiles(siteSettings.authorProfiles);
       }
@@ -1807,6 +1839,12 @@ export default function AdminPanel({
         footerLink5Url: custFooterLink5Url.trim(),
         footerLink6Text: custFooterLink6Text.trim(),
         footerLink6Url: custFooterLink6Url.trim(),
+        facebookUrl: custFacebookUrl.trim(),
+        twitterUrl: custTwitterUrl.trim(),
+        instagramUrl: custInstagramUrl.trim(),
+        youtubeUrl: custYoutubeUrl.trim(),
+        whatsappUrl: custWhatsappUrl.trim(),
+        telegramUrl: custTelegramUrl.trim(),
       };
 
       // Save to localStorage so they persist on page reload.
@@ -1926,6 +1964,13 @@ export default function AdminPanel({
         footerLink5Url: updatedFields && 'footerLink5Url' in updatedFields ? updatedFields.footerLink5Url : custFooterLink5Url.trim(),
         footerLink6Text: updatedFields && 'footerLink6Text' in updatedFields ? updatedFields.footerLink6Text : custFooterLink6Text.trim(),
         footerLink6Url: updatedFields && 'footerLink6Url' in updatedFields ? updatedFields.footerLink6Url : custFooterLink6Url.trim(),
+
+        facebookUrl: updatedFields && 'facebookUrl' in updatedFields ? updatedFields.facebookUrl : custFacebookUrl.trim(),
+        twitterUrl: updatedFields && 'twitterUrl' in updatedFields ? updatedFields.twitterUrl : custTwitterUrl.trim(),
+        instagramUrl: updatedFields && 'instagramUrl' in updatedFields ? updatedFields.instagramUrl : custInstagramUrl.trim(),
+        youtubeUrl: updatedFields && 'youtubeUrl' in updatedFields ? updatedFields.youtubeUrl : custYoutubeUrl.trim(),
+        whatsappUrl: updatedFields && 'whatsappUrl' in updatedFields ? updatedFields.whatsappUrl : custWhatsappUrl.trim(),
+        telegramUrl: updatedFields && 'telegramUrl' in updatedFields ? updatedFields.telegramUrl : custTelegramUrl.trim(),
 
         authorProfiles: updatedFields && 'authorProfiles' in updatedFields ? updatedFields.authorProfiles : authorProfiles,
         recentActivities: updatedFields && 'recentActivities' in updatedFields ? updatedFields.recentActivities : recentActivities,
@@ -4003,11 +4048,111 @@ export default function AdminPanel({
               </div>
             </div>
 
+            {/* Social Media Links Section */}
+            <div className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
+              <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
+                <Share2 className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>४. सोशल मीडिया दुवे (Social Media Links)</span>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <Facebook className="h-3 w-3 text-blue-600" />
+                    <span>फेसबुक लिंक (Facebook URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://facebook.com/majhapatra"
+                    value={custFacebookUrl}
+                    onChange={(e) => setCustFacebookUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('फेसबुक लिंक अद्ययावत केली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <Twitter className="h-3 w-3 text-sky-500" />
+                    <span>X / ट्विटर लिंक (Twitter URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://twitter.com/majhapatra"
+                    value={custTwitterUrl}
+                    onChange={(e) => setCustTwitterUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('ट्विटर लिंक अद्ययावत केली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <Instagram className="h-3 w-3 text-pink-600" />
+                    <span>इन्स्टाग्राम लिंक (Instagram URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://instagram.com/majhapatra"
+                    value={custInstagramUrl}
+                    onChange={(e) => setCustInstagramUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('इन्स्टाग्राम लिंक अद्ययावत केली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <Youtube className="h-3 w-3 text-red-650" />
+                    <span>युट्युब चॅनेल लिंक (YouTube URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://youtube.com/@majhapatra"
+                    value={custYoutubeUrl}
+                    onChange={(e) => setCustYoutubeUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('युट्युब चॅनेल लिंक अद्ययावत केली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <MessageSquare className="h-3 w-3 text-emerald-500" />
+                    <span>व्हाट्सॲप नंबर किंवा चॅनेल लिंक (WhatsApp URL / Number)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="उदा. 919876543210 किंवा ग्रुप लिंक..."
+                    value={custWhatsappUrl}
+                    onChange={(e) => setCustWhatsappUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('व्हाट्सॲप संपर्क माहिती बदलली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <Send className="h-3 w-3 text-sky-600" />
+                    <span>टेलिग्राम चॅनेल लिंक (Telegram URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://t.me/majhapatra"
+                    value={custTelegramUrl}
+                    onChange={(e) => setCustTelegramUrl(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('टेलिग्राम चॅनेल लिंक बदलली.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Row 4: Breaking News text details */}
             <div className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
                 <Sparkles className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>४. ब्रेकिंग न्यूज मजकूर (Breaking News Ticker Text)</span>
+                <span>५. ब्रेकिंग न्यूज मजकूर (Breaking News Ticker Text)</span>
               </h4>
 
               <div className="space-y-1">
@@ -4029,7 +4174,7 @@ export default function AdminPanel({
             <div id="settings-ad-banner-form" className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
                 <Megaphone className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>५. मुख्य जाहिरात बॅनर (Home Page Ad Banner Section)</span>
+                <span>६. मुख्य जाहिरात बॅनर (Home Page Ad Banner Section)</span>
               </h4>
 
               <div className="flex items-center space-x-3 bg-white p-3.5 rounded-lg border border-slate-200">
@@ -4647,7 +4792,7 @@ export default function AdminPanel({
             <div id="settings-live-tv-form" className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
                 <Tv className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>६. लाइव्ह टीव्ही थेट प्रक्षेपण (Live TV Video Section)</span>
+                <span>७. लाइव्ह टीव्ही थेट प्रक्षेपण (Live TV Video Section)</span>
               </h4>
 
               <div className="space-y-1">
@@ -4697,7 +4842,7 @@ export default function AdminPanel({
             <div id="settings-media-storage" className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-extrabold text-slate-500 uppercase tracking-widest flex items-center space-x-1.5 mb-2">
                 <Database className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>७. मीडिया आणि क्लाउड स्टोरेज (Media & Cloud Storage)</span>
+                <span>८. मीडिया आणि क्लाउड स्टोरेज (Media & Cloud Storage)</span>
               </h4>
 
               <div className="flex flex-col space-y-4 bg-white p-4 rounded-lg border border-slate-200">
@@ -5283,6 +5428,12 @@ export default function AdminPanel({
                     setCustFooterLink5Url(siteSettings.footerLink5Url || '');
                     setCustFooterLink6Text(siteSettings.footerLink6Text || '');
                     setCustFooterLink6Url(siteSettings.footerLink6Url || '');
+                    setCustFacebookUrl(siteSettings.facebookUrl || '');
+                    setCustTwitterUrl(siteSettings.twitterUrl || '');
+                    setCustInstagramUrl(siteSettings.instagramUrl || '');
+                    setCustYoutubeUrl(siteSettings.youtubeUrl || '');
+                    setCustWhatsappUrl(siteSettings.whatsappUrl || '');
+                    setCustTelegramUrl(siteSettings.telegramUrl || '');
                   }
                   setActiveTab('news');
                 }}

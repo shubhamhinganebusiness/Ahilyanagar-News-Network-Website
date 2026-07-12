@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { News, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 import AuthorProfile from './AuthorProfile';
+import { ArticleShareButton } from './ArticleShareButton';
 
 interface ArticleDetailProps {
   articleId: string;
@@ -369,8 +370,8 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const shareOnWhatsApp = () => {
     if (!article) return;
     const cleanDesc = article.description || article.content.replace(/<[^>]*>/g, '').slice(0, 150);
-    // Placing the article URL first ensures WhatsApp's crawler recognizes it immediately for generating the rich preview
-    const shareText = `${window.location.href}\n\n*${article.title}*\n\n_${cleanDesc}_`;
+    // Placing the bolded title immediately above the clickable URL connects them visually and functionally on WhatsApp
+    const shareText = `*${article.title}*\n🔗 येथे संपूर्ण बातमी वाचा: ${window.location.href}\n\n_${cleanDesc}_`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
     setShareWhatsAppCopied(true);
@@ -542,44 +543,38 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     // Check if it's HTML content
     const isHtml = content.includes('<') && (content.includes('>') || content.includes('</'));
 
-    // Gather all enabled ads to cycle through them
-    const activeAds: { imageUrl: string; link: string; whatsapp?: string; phone?: string; label: string }[] = [];
-    if (siteSettings?.detailAd1Enabled) {
-      activeAds.push({
-        imageUrl: siteSettings.detailAd1ImageUrl || '',
-        link: siteSettings.detailAd1Link || '#',
-        whatsapp: siteSettings.detailAd1Whatsapp,
-        phone: siteSettings.detailAd1Phone,
-        label: '१'
-      });
-    }
-    if (siteSettings?.detailAd2Enabled) {
-      activeAds.push({
-        imageUrl: siteSettings.detailAd2ImageUrl || '',
-        link: siteSettings.detailAd2Link || '#',
-        whatsapp: siteSettings.detailAd2Whatsapp,
-        phone: siteSettings.detailAd2Phone,
-        label: '२'
-      });
-    }
-    if (siteSettings?.detailAd3Enabled) {
-      activeAds.push({
-        imageUrl: siteSettings.detailAd3ImageUrl || '',
-        link: siteSettings.detailAd3Link || '#',
-        whatsapp: siteSettings.detailAd3Whatsapp,
-        phone: siteSettings.detailAd3Phone,
-        label: '३'
-      });
-    }
-    if (siteSettings?.detailAd4Enabled) {
-      activeAds.push({
-        imageUrl: siteSettings.detailAd4ImageUrl || '',
-        link: siteSettings.detailAd4Link || '#',
-        whatsapp: siteSettings.detailAd4Whatsapp,
-        phone: siteSettings.detailAd4Phone,
-        label: '४'
-      });
-    }
+    // Prepare individual ad slot configurations
+    const ad1 = siteSettings?.detailAd1Enabled ? {
+      imageUrl: siteSettings.detailAd1ImageUrl || '',
+      link: siteSettings.detailAd1Link || '#',
+      whatsapp: siteSettings.detailAd1Whatsapp,
+      phone: siteSettings.detailAd1Phone,
+      label: '१'
+    } : null;
+
+    const ad2 = siteSettings?.detailAd2Enabled ? {
+      imageUrl: siteSettings.detailAd2ImageUrl || '',
+      link: siteSettings.detailAd2Link || '#',
+      whatsapp: siteSettings.detailAd2Whatsapp,
+      phone: siteSettings.detailAd2Phone,
+      label: '२'
+    } : null;
+
+    const ad3 = siteSettings?.detailAd3Enabled ? {
+      imageUrl: siteSettings.detailAd3ImageUrl || '',
+      link: siteSettings.detailAd3Link || '#',
+      whatsapp: siteSettings.detailAd3Whatsapp,
+      phone: siteSettings.detailAd3Phone,
+      label: '३'
+    } : null;
+
+    const ad4 = siteSettings?.detailAd4Enabled ? {
+      imageUrl: siteSettings.detailAd4ImageUrl || '',
+      link: siteSettings.detailAd4Link || '#',
+      whatsapp: siteSettings.detailAd4Whatsapp,
+      phone: siteSettings.detailAd4Phone,
+      label: '४'
+    } : null;
 
     const renderAdCard = (ad: { imageUrl: string; link: string; whatsapp?: string; phone?: string; label: string }, key: string) => {
       return (
@@ -632,75 +627,139 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       );
     };
 
-    let adIndex = 0;
-
     if (isHtml) {
-      // Find all paragraphs - split by </p>
-      const pTags = content.split('</p>');
-      const nonEmpties = pTags.filter(p => p.trim() !== '');
+      // Find all paragraphs and line breaks - split by </p> and <br> tags to count actual text lines
+      const rawChunks = content.split(/<\/p>|<br\s*\/?>/gi);
+      const chunks = rawChunks
+        .map(chunk => {
+          let cleaned = chunk.trim();
+          if (!cleaned) return '';
+          // If it starts with <p> but doesn't end with </p> (since we split by </p>), let's close it
+          if (cleaned.toLowerCase().startsWith('<p') && !cleaned.toLowerCase().endsWith('</p>')) {
+            cleaned += '</p>';
+          } else if (!cleaned.toLowerCase().startsWith('<p') && !cleaned.toLowerCase().startsWith('<div') && !cleaned.toLowerCase().startsWith('<h')) {
+            // It's a raw line of text, wrap it in a clean paragraph tag
+            cleaned = `<p>${cleaned}</p>`;
+          }
+          return cleaned;
+        })
+        .filter(chunk => {
+          if (!chunk) return false;
+          // Only keep chunks that contain actual text content (strip tags and check length)
+          const stripped = chunk.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+          return stripped.length > 0;
+        });
       
+      const L = chunks.length;
+      const partSize = Math.floor(L / 4);
+      const remainder = L % 4;
+
+      const s1 = partSize + (remainder > 0 ? 1 : 0);
+      const s2 = partSize + (remainder > 1 ? 1 : 0);
+      const s3 = partSize + (remainder > 2 ? 1 : 0);
+      const s4 = partSize;
+
+      const part1 = chunks.slice(0, s1);
+      const part2 = chunks.slice(s1, s1 + s2);
+      const part3 = chunks.slice(s1 + s2, s1 + s2 + s3);
+      const part4 = chunks.slice(s1 + s2 + s3);
+
       const elements: React.ReactNode[] = [];
-      
-      nonEmpties.forEach((p, idx) => {
-        // Render the paragraph first
-        const paragraphHtml = p + '</p>';
-        elements.push(
-          <div 
-            key={`p-${idx}`}
-            className={`rich-text-content-chunk leading-relaxed select-text animate-fade-in prose max-w-none prose-headings:font-bold prose-p:mb-4 prose-ul:list-disc prose-ul:pl-5 prose-ol:list-decimal prose-ol:pl-5 prose-strong:font-bold prose-a:text-rose-600 ${
-              readingTheme === 'dark' 
-                ? 'text-slate-200 prose-headings:text-slate-100 prose-strong:text-white' 
-                : readingTheme === 'cream' 
-                ? 'text-[#2c1d11] prose-headings:text-[#1a110a] prose-strong:text-[#1a110a]' 
-                : 'text-slate-800 prose-headings:text-slate-900 prose-strong:text-slate-900'
-            }`}
-            dangerouslySetInnerHTML={{ __html: paragraphHtml }}
-          />
-        );
-        
-        // After every 4th Paragraph (idx === 3, 7, 11, ...)
-        if ((idx + 1) % 4 === 0 && activeAds.length > 0) {
-          const currentAd = activeAds[adIndex % activeAds.length];
-          adIndex++;
-          elements.push(renderAdCard(currentAd, `mid-ad-${idx}`));
-        }
-      });
-      
-      // Fallback: If no ads were injected inside the body (e.g. less than 4 paragraphs) and ads are enabled, inject one
-      if (adIndex === 0 && activeAds.length > 0) {
-        elements.push(renderAdCard(activeAds[0], 'fallback-mid-ad'));
-      }
-      
+      const renderChunk = (htmlText: string, idx: number, partPrefix: string) => (
+        <div 
+          key={`p-${partPrefix}-${idx}`}
+          className={`rich-text-content-chunk leading-relaxed select-text animate-fade-in prose max-w-none prose-headings:font-bold prose-p:mb-4 prose-ul:list-disc prose-ul:pl-5 prose-ol:list-decimal prose-ol:pl-5 prose-strong:font-bold prose-a:text-rose-600 ${
+            readingTheme === 'dark' 
+              ? 'text-slate-200 prose-headings:text-slate-100 prose-strong:text-white' 
+              : readingTheme === 'cream' 
+              ? 'text-[#2c1d11] prose-headings:text-[#1a110a] prose-strong:text-[#1a110a]' 
+              : 'text-slate-800 prose-headings:text-slate-900 prose-strong:text-slate-900'
+          }`}
+          dangerouslySetInnerHTML={{ __html: htmlText }}
+        />
+      );
+
+      // Part 1 content + Ad 1
+      part1.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p1')));
+      if (ad1) elements.push(renderAdCard(ad1, 'mid-ad-1'));
+
+      // Part 2 content + Ad 2
+      part2.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p2')));
+      if (ad2) elements.push(renderAdCard(ad2, 'mid-ad-2'));
+
+      // Part 3 content + Ad 3
+      part3.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p3')));
+      if (ad3) elements.push(renderAdCard(ad3, 'mid-ad-3'));
+
+      // Part 4 content + Ad 4
+      part4.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p4')));
+      if (ad4) elements.push(renderAdCard(ad4, 'mid-ad-4'));
+
       return <div className="space-y-6">{elements}</div>;
     } else {
-      // Plain text content split by '\n'
-      const paragraphs = content.split('\n').map(p => p.trim()).filter(Boolean);
-      const totalParagraphs = paragraphs.length;
+      // Plain text content split by '\n' or '\r\n' to count actual text lines
+      const paragraphs = content
+        .split(/\r?\n/)
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+      const L = paragraphs.length;
       
-      if (totalParagraphs === 0) return null;
+      if (L === 0) return null;
+
+      const partSize = Math.floor(L / 4);
+      const remainder = L % 4;
+
+      const s1 = partSize + (remainder > 0 ? 1 : 0);
+      const s2 = partSize + (remainder > 1 ? 1 : 0);
+      const s3 = partSize + (remainder > 2 ? 1 : 0);
+      const s4 = partSize;
+
+      const part1 = paragraphs.slice(0, s1);
+      const part2 = paragraphs.slice(s1, s1 + s2);
+      const part3 = paragraphs.slice(s1 + s2, s1 + s2 + s3);
+      const part4 = paragraphs.slice(s1 + s2 + s3);
       
       const elements: React.ReactNode[] = [];
-      
-      paragraphs.forEach((para, idx) => {
-        // Add paragraph element
+
+      // Part 1 content + Ad 1
+      part1.forEach((para, idx) => {
         elements.push(
-          <p key={`p-${idx}`} className={`paragraph-item animate-fade-in ${idx === 0 ? 'first-letter:font-semibold first-letter:text-2xl first-letter:float-left first-letter:mr-1 first-letter:mt-1 first-letter:text-rose-600' : ''}`}>
+          <p key={`p-p1-${idx}`} className={`paragraph-item animate-fade-in ${idx === 0 ? 'first-letter:font-semibold first-letter:text-2xl first-letter:float-left first-letter:mr-1 first-letter:mt-1 first-letter:text-rose-600' : ''}`}>
             {para}
           </p>
         );
-        
-        // After every 4th Paragraph
-        if ((idx + 1) % 4 === 0 && activeAds.length > 0) {
-          const currentAd = activeAds[adIndex % activeAds.length];
-          adIndex++;
-          elements.push(renderAdCard(currentAd, `mid-ad-${idx}`));
-        }
       });
-      
-      // Fallback: If no ads were injected inside the body (less than 4 paragraphs) and ads are enabled, inject one
-      if (adIndex === 0 && activeAds.length > 0) {
-        elements.push(renderAdCard(activeAds[0], 'fallback-mid-ad'));
-      }
+      if (ad1) elements.push(renderAdCard(ad1, 'mid-ad-1'));
+
+      // Part 2 content + Ad 2
+      part2.forEach((para, idx) => {
+        elements.push(
+          <p key={`p-p2-${idx}`} className="paragraph-item animate-fade-in">
+            {para}
+          </p>
+        );
+      });
+      if (ad2) elements.push(renderAdCard(ad2, 'mid-ad-2'));
+
+      // Part 3 content + Ad 3
+      part3.forEach((para, idx) => {
+        elements.push(
+          <p key={`p-p3-${idx}`} className="paragraph-item animate-fade-in">
+            {para}
+          </p>
+        );
+      });
+      if (ad3) elements.push(renderAdCard(ad3, 'mid-ad-3'));
+
+      // Part 4 content + Ad 4
+      part4.forEach((para, idx) => {
+        elements.push(
+          <p key={`p-p4-${idx}`} className="paragraph-item animate-fade-in">
+            {para}
+          </p>
+        );
+      });
+      if (ad4) elements.push(renderAdCard(ad4, 'mid-ad-4'));
       
       return <>{elements}</>;
     }
@@ -709,8 +768,44 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const readingTime = calculateReadingTime(article.content);
   const ytVideoId = getYouTubeId(videoURLInput);
 
+  // Generate JSON-LD Structured Data (Article Schema)
+  const schemaData = article ? {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": article.title,
+    "image": [
+      article.imageURL ? resolveDriveUrl(article.imageURL) : "https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link"
+    ],
+    "datePublished": article.publishDate || new Date().toISOString(),
+    "dateModified": article.publishDate || new Date().toISOString(),
+    "author": [{
+      "@type": "Person",
+      "name": article.author || "अहिल्यानगर न्यूज नेटवर्क प्रतिनिधी",
+      "jobTitle": "News Reporter"
+    }],
+    "publisher": {
+      "@type": "Organization",
+      "name": siteSettings?.channelName || "अहिल्यानगर न्यूज नेटवर्क",
+      "logo": {
+        "@type": "ImageObject",
+        "url": siteSettings?.channelLogoUrl ? resolveDriveUrl(siteSettings.channelLogoUrl) : "https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link"
+      }
+    },
+    "description": article.description || article.content.replace(/<[^>]*>/g, '').slice(0, 150),
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": window.location.href
+    }
+  } : null;
+
   return (
     <article className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8 relative">
+      {schemaData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
+      )}
       {/* Reading Progress Indicator */}
       <div className="fixed top-0 left-0 w-full h-[4px] bg-slate-100/55 z-50 pointer-events-none">
         <div 
@@ -1173,17 +1268,13 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             <ThumbsUp className={`h-5 w-5 ${liked ? 'fill-rose-500' : ''}`} />
           </button>
           
-          <button
-            onClick={handleShare}
-            className={`p-3 rounded-full border transition-all flex items-center justify-center relative cursor-pointer ${
-              copied 
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-600' 
-                : 'bg-white border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200'
-            }`}
-            title="लिंक कॉपी करा"
-          >
-            {copied ? <Check className="h-5 w-5 text-emerald-600 animate-bounce" /> : <Share2 className="h-5 w-5" />}
-          </button>
+          <ArticleShareButton
+            article={article}
+            siteName={siteSettings?.channelName || "अहिल्यानगर न्यूज नेटवर्क"}
+            onShareSuccess={() => setShareCount(prev => prev + 1)}
+            addToast={addToast}
+            variant="circular"
+          />
 
           {/* Twitter Social Share Link */}
           <button
@@ -1442,6 +1533,14 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             <Bookmark className={`h-4 w-4 ${isSavedForLater ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
             <span>{isSavedForLater ? 'नंतरच्या यादीत सेव्ह केली' : 'नंतर वाचा (Save)'}</span>
           </button>
+
+          <ArticleShareButton
+            article={article}
+            siteName={siteSettings?.channelName || "अहिल्यानगर न्यूज नेटवर्क"}
+            onShareSuccess={() => setShareCount(prev => prev + 1)}
+            addToast={addToast}
+            variant="pill"
+          />
 
           <button
             onClick={shareOnTwitter}
