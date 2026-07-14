@@ -166,6 +166,15 @@ export async function createDirectNews(newsData: Omit<News, '_id'>): Promise<New
     publishDate: newsData.publishDate || new Date().toISOString()
   };
   const docRef = await addDoc(newsCol, payload);
+
+  // Automatically update the breakingNewsText in site settings to show this title in the scrolling ticker
+  try {
+    const settingsRef = doc(db, 'settings', 'site');
+    await setDoc(settingsRef, { breakingNewsText: newsData.title }, { merge: true });
+  } catch (settingsErr) {
+    console.warn('Failed to auto-update breakingNewsText in direct settings:', settingsErr);
+  }
+
   return {
     _id: docRef.id,
     ...payload

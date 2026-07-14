@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import { PortalDatabase } from './server/db';
+import { PortalDatabase } from './server/db.ts';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 
@@ -830,7 +830,26 @@ Follow these rules strictly:
   // 3. POST /api/news -> add new news (admin only)
   app.post('/api/news', adminAuth, async (req, res) => {
     try {
-      const { title, category, description, content, imageURL, author, videoURL, tags, hidden, scheduledPublishDate } = req.body;
+      const { 
+        title, 
+        category, 
+        description, 
+        content, 
+        imageURL, 
+        author, 
+        videoURL, 
+        tags, 
+        hidden, 
+        scheduledPublishDate,
+        sponsorAd1ImageURL,
+        sponsorAd1LinkURL,
+        sponsorAd2ImageURL,
+        sponsorAd2LinkURL,
+        sponsorAd3ImageURL,
+        sponsorAd3LinkURL,
+        sponsorAd4ImageURL,
+        sponsorAd4LinkURL
+      } = req.body;
 
       if (!title || !category || !description || !content || !imageURL || !author) {
         return res.status(400).json({ error: 'कृपया सर्व आवश्यक फॉर्म फील्ड्स पूर्ण करा.' });
@@ -861,7 +880,24 @@ Follow these rules strictly:
         hidden: !!hidden,
         authorUsername,
         scheduledPublishDate: scheduledPublishDate || '',
+        sponsorAd1ImageURL: sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: sponsorAd4LinkURL || '',
       });
+
+      // Automatically update the breakingNewsText in site settings to show this title in the scrolling ticker
+      try {
+        await db.updateSettings({
+          breakingNewsText: newArticle.title
+        });
+      } catch (settingsErr) {
+        console.warn('Failed to auto-update breakingNewsText in site settings:', settingsErr);
+      }
 
       const userEmail = (req as any).user?.email || 'shubhamhinganebusiness@gmail.com';
       await db.createLog('नवीन बातमी प्रसिद्ध केली', `शीर्षक: "${newArticle.title}" (श्रेणी: ${newArticle.category})`, userEmail).catch(console.error);
@@ -877,7 +913,26 @@ Follow these rules strictly:
   app.put('/api/news/:id', adminAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, category, description, content, imageURL, author, videoURL, tags, hidden, scheduledPublishDate } = req.body;
+      const { 
+        title, 
+        category, 
+        description, 
+        content, 
+        imageURL, 
+        author, 
+        videoURL, 
+        tags, 
+        hidden, 
+        scheduledPublishDate,
+        sponsorAd1ImageURL,
+        sponsorAd1LinkURL,
+        sponsorAd2ImageURL,
+        sponsorAd2LinkURL,
+        sponsorAd3ImageURL,
+        sponsorAd3LinkURL,
+        sponsorAd4ImageURL,
+        sponsorAd4LinkURL
+      } = req.body;
 
       if (!title || !category || !description || !content || !imageURL || !author) {
         return res.status(400).json({ error: 'कृपया सर्व आवश्यक फॉर्म फील्ड्स पूर्ण करा.' });
@@ -909,6 +964,14 @@ Follow these rules strictly:
         videoURL: videoURL || '',
         tags: Array.isArray(tags) ? tags : [],
         scheduledPublishDate: scheduledPublishDate || '',
+        sponsorAd1ImageURL: sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: sponsorAd4LinkURL || '',
       };
       if (hidden !== undefined) {
         updateData.hidden = !!hidden;

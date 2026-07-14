@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Eye, ArrowRight, LayoutGrid, AlertCircle, Sun, Sprout, CloudRain, CloudLightning, Coffee, Umbrella, Sparkles, Heart, BarChart3, CheckCircle2 } from 'lucide-react';
+import { Calendar, User, Eye, ArrowRight, LayoutGrid, AlertCircle, Sun, Sprout, CloudRain, CloudLightning, Coffee, Umbrella, Sparkles, Heart, BarChart3, CheckCircle2, Flame, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { News, CategoryType, SiteCustomization, Poll, AuthUser, resolveDriveUrl } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import BrandAdsSlider from './BrandAdsSlider';
@@ -35,6 +36,50 @@ export default function NewsGrid({
   categories,
 }: NewsGridProps) {
   
+  // Headline Carousel slider states
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
+  
+  // Stable mock views state initialized with article real views or a seeded fallback
+  const [mockViews, setMockViews] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const initialViews: Record<string, number> = {};
+    newsList.forEach((item) => {
+      if (item.views && item.views > 0) {
+        initialViews[item._id] = item.views;
+      } else {
+        // Simple stable seed based on characters to keep it consistent on reload
+        const charSum = (item.title || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        initialViews[item._id] = 120 + (charSum % 880); // Seed between 120 and 1000 views
+      }
+    });
+    setMockViews(initialViews);
+  }, [newsList]);
+
+  // Simulate dynamic real-time traffic pulse (increment view counts for random articles over time)
+  useEffect(() => {
+    if (newsList.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setMockViews((prev) => {
+        const next = { ...prev };
+        const countToIncrement = Math.min(2, newsList.length);
+        for (let i = 0; i < countToIncrement; i++) {
+          const randomIdx = Math.floor(Math.random() * newsList.length);
+          const randomArticleId = newsList[randomIdx]._id;
+          if (randomArticleId) {
+            const increment = Math.floor(Math.random() * 4) + 1; // +1 to +4 views
+            next[randomArticleId] = (next[randomArticleId] || 100) + increment;
+          }
+        }
+        return next;
+      });
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [newsList]);
+  
   // Filter news based on category and search query
   const filteredNews = newsList.filter((item) => {
     const matchesCategory = currentCategory === 'सर्व' || item.category === currentCategory;
@@ -50,6 +95,25 @@ export default function NewsGrid({
 
     return matchesCategory && matchesSearch;
   });
+
+  // Carousel contains up to 5 most important headlines from current filtered list
+  const carouselArticles = filteredNews.slice(0, 5);
+
+  // Reset active slide index when category or search filter changes
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [currentCategory, searchQuery]);
+
+  // Automatic slide rotation interval for headlines carousel
+  useEffect(() => {
+    if (carouselArticles.length <= 1 || isCarouselHovered) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % carouselArticles.length);
+    }, 6000); // Rotate every 6 seconds
+
+    return () => clearInterval(interval);
+  }, [carouselArticles.length, isCarouselHovered]);
 
   const formatPublishDate = (dateString: string) => {
     try {
@@ -138,7 +202,7 @@ export default function NewsGrid({
     );
   }
 
-  // Extract featured news (first items in filtered list)
+  // Extract articles for grid rendering and compatibility (featuredArticle represents the main first story)
   const featuredArticle = filteredNews[0];
   const gridArticles = filteredNews.slice(1);
 
@@ -341,64 +405,171 @@ export default function NewsGrid({
         </div>
       )}
 
-      {/* Featured News Layout - Only visible if no active filter banner takes up screen */}
-      {featuredArticle && !searchQuery && (
+      {/* Featured News Carousel - Only visible if no active filter banner takes up screen */}
+      {carouselArticles.length > 0 && !searchQuery && (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2 border-l-4 border-rose-600 pl-3">
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">आजची मुख्य बातमी</h2>
+          <div className="flex items-center justify-between border-l-4 border-rose-600 pl-3">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-rose-600 animate-pulse" />
+              <span>आजच्या मुख्य घडामोडी • HEADLINES</span>
+            </h2>
+            {carouselArticles.length > 1 && (
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev - 1 + carouselArticles.length) % carouselArticles.length)}
+                  className="bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700 p-1.5 rounded-lg transition cursor-pointer"
+                  title="मागील बातमी"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-xs font-bold text-slate-500 px-1 font-mono">
+                  {currentSlide + 1} / {carouselArticles.length}
+                </span>
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev + 1) % carouselArticles.length)}
+                  className="bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700 p-1.5 rounded-lg transition cursor-pointer"
+                  title="पुढील बातमी"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
           
+          {/* Active Carousel Slide viewport with smooth transitions */}
           <div 
-            onClick={() => onSelectArticle(featuredArticle._id)}
-            className="bg-white rounded-2xl border border-rose-100/50 overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer grid grid-cols-1 lg:grid-cols-12 gap-0 group"
+            className="bg-white rounded-2xl border border-rose-100/50 overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 relative min-h-[384px] lg:min-h-0"
+            onMouseEnter={() => setIsCarouselHovered(true)}
+            onMouseLeave={() => setIsCarouselHovered(false)}
           >
-            {/* Featured Image */}
-            <div className="lg:col-span-7 h-64 sm:h-96 overflow-hidden relative">
-              <img
-                src={resolveDriveUrl(featuredArticle.imageURL)}
-                alt={featuredArticle.title}
-                className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
-                loading="lazy"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
-                }}
-                referrerPolicy="no-referrer"
-              />
-              <span className="absolute top-4 left-4 bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-sm shadow-md uppercase tracking-wider">
-                {featuredArticle.category}
-              </span>
-            </div>
+            <AnimatePresence mode="wait">
+              {carouselArticles.map((article, index) => {
+                if (index !== currentSlide) return null;
+                return (
+                  <motion.div
+                    key={article._id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.35, ease: "easeInOut" }}
+                    onClick={() => onSelectArticle(article._id)}
+                    className="grid grid-cols-1 lg:grid-cols-12 gap-0 group cursor-pointer"
+                  >
+                    {/* Featured Image */}
+                    <div className="lg:col-span-7 h-64 sm:h-96 overflow-hidden relative">
+                      <img
+                        src={resolveDriveUrl(article.imageURL)}
+                        alt={article.title}
+                        className="w-full h-full object-cover group-hover:scale-102 transition-all duration-500"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
+                        }}
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="absolute top-4 left-4 bg-rose-600 text-white font-bold text-xs px-2.5 py-1 rounded-sm shadow-md uppercase tracking-wider z-10">
+                        {article.category}
+                      </span>
 
-            {/* Featured Description */}
-            <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-4 bg-slate-50/50">
-              <div className="space-y-3">
-                <span className="text-xs text-rose-600 font-bold tracking-widest block font-mono">नवीनतम • LATEST NEWS</span>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-905 leading-tight group-hover:text-rose-600 transition-colors">
-                  {featuredArticle.title}
-                </h3>
-                <p className="text-slate-600 text-sm line-clamp-4 leading-relaxed font-sans">
-                  {featuredArticle.description}
-                </p>
-              </div>
+                      {/* Navigation overlays on image on desktop */}
+                      {carouselArticles.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentSlide((prev) => (prev - 1 + carouselArticles.length) % carouselArticles.length);
+                            }}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-rose-600 text-white p-2 rounded-full backdrop-blur-xs transition duration-300 z-10 opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                            aria-label="Previous Slide"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentSlide((prev) => (prev + 1) % carouselArticles.length);
+                            }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-rose-600 text-white p-2 rounded-full backdrop-blur-xs transition duration-300 z-10 opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                            aria-label="Next Slide"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
 
-              {/* Meta */}
-              <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-4 mt-auto">
-                <div className="flex items-center space-x-1.5">
-                  <User className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-700">{featuredArticle.author}</span>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{formatPublishDate(featuredArticle.publishDate)}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Eye className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{featuredArticle.views || 0} वेळा वाचले</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                      {/* Slide Indicators Overlay inside Image Area */}
+                      {carouselArticles.length > 1 && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-2 z-10 bg-black/25 px-3 py-1.5 rounded-full backdrop-blur-xs">
+                          {carouselArticles.map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentSlide(idx);
+                              }}
+                              className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                                idx === currentSlide ? 'w-5 bg-rose-500' : 'w-2 bg-white/60 hover:bg-white'
+                              }`}
+                              title={`Slide ${idx + 1}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Active Timer Progress Line running at the very bottom edge of image */}
+                      {carouselArticles.length > 1 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 z-10">
+                          <div 
+                            key={currentSlide}
+                            className={`h-full bg-rose-500 ${isCarouselHovered ? 'w-0' : 'animate-carousel-progress'}`}
+                            style={{ animationPlayState: isCarouselHovered ? 'paused' : 'running' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Featured Description */}
+                    <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between space-y-4 bg-slate-50/50 relative">
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-rose-600 font-bold tracking-widest block font-mono">नवीनतम • LATEST NEWS</span>
+                          <span className="bg-rose-100 text-rose-700 font-bold text-[9px] px-1.5 py-0.5 rounded-sm animate-pulse uppercase tracking-wider">
+                            मुख्य घडामोड
+                          </span>
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-slate-905 leading-tight group-hover:text-rose-600 transition-colors">
+                          {article.title}
+                        </h3>
+                        <p className="text-slate-600 text-sm line-clamp-4 leading-relaxed font-sans">
+                          {article.description}
+                        </p>
+                      </div>
+
+                      {/* Meta */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-4 mt-auto">
+                        <div className="flex items-center space-x-1.5">
+                          <User className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="font-semibold text-slate-700">{article.author}</span>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{formatPublishDate(article.publishDate)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Eye className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{mockViews[article._id] || article.views || 0} वेळा वाचले</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </div>
       )}
@@ -441,77 +612,131 @@ export default function NewsGrid({
       {/* Reader Opinion Poll Section */}
       <PollComponent authUser={authUser} addToast={addToast} />
 
-      {/* Grid List below */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between border-l-4 border-rose-600 pl-3">
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-            {searchQuery 
-              ? 'शोधाचे परिणाम' 
-              : currentCategory === 'सर्व' 
-                ? 'इतर ताज्या बातम्या' 
-                : `${currentCategory} विभागातील बातम्या`
-            }
-          </h2>
-          <span className="text-xs font-semibold text-slate-400 font-mono tracking-wider flex items-center gap-1">
-            <LayoutGrid className="h-3 w-3" />
-            {filteredNews.length} बातम्या उपलब्ध
-          </span>
-        </div>
+      {/* Main Grid + Sidebar Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-4">
+        {/* Left Column: News Grid List */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+          <div className="flex items-center justify-between border-l-4 border-rose-600 pl-3">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              {searchQuery 
+                ? 'शोधाचे परिणाम' 
+                : currentCategory === 'सर्व' 
+                  ? 'इतर ताज्या बातम्या' 
+                  : `${currentCategory} विभागातील बातम्या`
+              }
+            </h2>
+            <span className="text-xs font-semibold text-slate-400 font-mono tracking-wider flex items-center gap-1">
+              <LayoutGrid className="h-3 w-3" />
+              {filteredNews.length} बातम्या उपलब्ध
+            </span>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Loop over filtered array if search active, or gridArticles if featured takes up row */}
-          {(searchQuery ? filteredNews : (featuredArticle ? gridArticles : filteredNews)).map((item) => (
-            <article
-              key={item._id}
-              onClick={() => onSelectArticle(item._id)}
-              className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-md hover:border-slate-200 transition-all duration-300 flex flex-col justify-between cursor-pointer group"
-            >
-              {/* Cover Image */}
-              <div className="h-48 overflow-hidden relative bg-slate-100 shrink-0">
-                <img
-                  src={resolveDriveUrl(item.imageURL)}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
-                  loading="lazy"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80';
-                  }}
-                  referrerPolicy="no-referrer"
-                />
-                <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
-                  {item.category}
-                </span>
-              </div>
-
-              {/* Text Description Block */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                <div className="space-y-2">
-                  <h3 className="font-extrabold text-slate-900 leading-snug text-base line-clamp-2 group-hover:text-rose-600 transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-slate-500 text-xs line-clamp-3 leading-relaxed font-sans">
-                    {item.description}
-                  </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Loop over filtered array if search active, or gridArticles if featured takes up row */}
+            {(searchQuery ? filteredNews : (featuredArticle ? gridArticles : filteredNews)).map((item) => (
+              <article
+                key={item._id}
+                onClick={() => onSelectArticle(item._id)}
+                className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-md hover:border-slate-200 transition-all duration-300 flex flex-col justify-between cursor-pointer group"
+              >
+                {/* Cover Image */}
+                <div className="h-48 overflow-hidden relative bg-slate-100 shrink-0">
+                  <img
+                    src={resolveDriveUrl(item.imageURL)}
+                    alt={item.title || 'बातम्या'}
+                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80';
+                    }}
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                    {item.category}
+                  </span>
                 </div>
 
-                {/* Card Meta details */}
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-50 mt-auto">
-                  <span className="truncate font-semibold text-slate-500 max-w-[100px]">{item.author}</span>
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <span className="flex items-center space-x-0.5">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatPublishDate(item.publishDate)}</span>
-                    </span>
-                    <span className="flex items-center space-x-0.5 font-mono text-[10px]">
-                      <Eye className="h-3 w-3" />
-                      <span>{item.views}</span>
-                    </span>
+                {/* Text Description Block */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    <h3 className="font-extrabold text-slate-900 leading-snug text-base line-clamp-2 group-hover:text-rose-600 transition-colors">
+                      {item.title || 'शीर्षक नाही'}
+                    </h3>
+                    <p className="text-slate-500 text-xs line-clamp-3 leading-relaxed font-sans">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* Card Meta details */}
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-50 mt-auto">
+                    <span className="truncate font-semibold text-slate-500 max-w-[100px]">{item.author || 'संपादक'}</span>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="flex items-center space-x-0.5">
+                        <Calendar className="h-3 w-3" />
+                        <span>{formatPublishDate(item.publishDate)}</span>
+                      </span>
+                      <span className="flex items-center space-x-0.5 font-mono text-[10px]">
+                        <Eye className="h-3 w-3" />
+                        <span>{mockViews[item._id] || item.views || 0}</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
+
+        {/* Right Column: Trending Now Sidebar */}
+        <aside className="lg:col-span-4 xl:col-span-3 space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs space-y-4 sticky top-24">
+            <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
+              <Flame className="h-5 w-5 text-amber-500 animate-pulse fill-amber-500/20" />
+              <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">ट्रेंडिंग बातम्या • TRENDING</h3>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {/* Sort newsList by views descending and slice top 5 */}
+              {[...newsList]
+                .map(item => ({
+                  ...item,
+                  viewsCount: mockViews[item._id] || item.views || 0
+                }))
+                .sort((a, b) => b.viewsCount - a.viewsCount)
+                .slice(0, 5)
+                .map((item, index) => (
+                  <div 
+                    key={item._id}
+                    onClick={() => onSelectArticle(item._id)}
+                    className="py-3 first:pt-0 last:pb-0 flex items-start gap-3 cursor-pointer group"
+                  >
+                    {/* Rank Badge */}
+                    <div className={`flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-black shrink-0 ${
+                      index === 0 ? 'bg-amber-500 text-white shadow-xs' :
+                      index === 1 ? 'bg-slate-300 text-slate-800' :
+                      index === 2 ? 'bg-orange-200 text-orange-800' :
+                      'bg-slate-100 text-slate-500'
+                    }`}>
+                      {index + 1}
+                    </div>
+
+                    <div className="space-y-1 min-w-0">
+                      <h4 className="text-xs font-bold text-slate-800 leading-snug group-hover:text-rose-600 transition-colors line-clamp-2">
+                        {item.title || 'शीर्षक नाही'}
+                      </h4>
+                      <div className="flex items-center space-x-2 text-[9px] text-slate-400">
+                        <span className="truncate max-w-[80px] font-medium text-slate-500">{item.author || 'संपादक'}</span>
+                        <span className="flex items-center space-x-0.5 shrink-0 text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.2 rounded-sm">
+                          <Eye className="h-2.5 w-2.5" />
+                          <span>{item.viewsCount}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

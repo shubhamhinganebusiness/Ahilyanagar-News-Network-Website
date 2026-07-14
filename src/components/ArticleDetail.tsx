@@ -797,37 +797,53 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     const isHtml = content.includes('<') && (content.includes('>') || content.includes('</'));
 
     // Prepare individual ad slot configurations
-    const ad1 = siteSettings?.detailAd1Enabled ? {
+    const ad1 = article.sponsorAd1ImageURL ? {
+      imageUrl: article.sponsorAd1ImageURL,
+      link: article.sponsorAd1LinkURL || '#',
+      label: '१ (प्रायोजित)'
+    } : (siteSettings?.detailAd1Enabled ? {
       imageUrl: siteSettings.detailAd1ImageUrl || '',
       link: siteSettings.detailAd1Link || '#',
       whatsapp: siteSettings.detailAd1Whatsapp,
       phone: siteSettings.detailAd1Phone,
       label: '१'
-    } : null;
+    } : null);
 
-    const ad2 = siteSettings?.detailAd2Enabled ? {
+    const ad2 = article.sponsorAd2ImageURL ? {
+      imageUrl: article.sponsorAd2ImageURL,
+      link: article.sponsorAd2LinkURL || '#',
+      label: '२ (प्रायोजित)'
+    } : (siteSettings?.detailAd2Enabled ? {
       imageUrl: siteSettings.detailAd2ImageUrl || '',
       link: siteSettings.detailAd2Link || '#',
       whatsapp: siteSettings.detailAd2Whatsapp,
       phone: siteSettings.detailAd2Phone,
       label: '२'
-    } : null;
+    } : null);
 
-    const ad3 = siteSettings?.detailAd3Enabled ? {
+    const ad3 = article.sponsorAd3ImageURL ? {
+      imageUrl: article.sponsorAd3ImageURL,
+      link: article.sponsorAd3LinkURL || '#',
+      label: '३ (प्रायोजित)'
+    } : (siteSettings?.detailAd3Enabled ? {
       imageUrl: siteSettings.detailAd3ImageUrl || '',
       link: siteSettings.detailAd3Link || '#',
       whatsapp: siteSettings.detailAd3Whatsapp,
       phone: siteSettings.detailAd3Phone,
       label: '३'
-    } : null;
+    } : null);
 
-    const ad4 = siteSettings?.detailAd4Enabled ? {
+    const ad4 = article.sponsorAd4ImageURL ? {
+      imageUrl: article.sponsorAd4ImageURL,
+      link: article.sponsorAd4LinkURL || '#',
+      label: '४ (प्रायोजित)'
+    } : (siteSettings?.detailAd4Enabled ? {
       imageUrl: siteSettings.detailAd4ImageUrl || '',
       link: siteSettings.detailAd4Link || '#',
       whatsapp: siteSettings.detailAd4Whatsapp,
       phone: siteSettings.detailAd4Phone,
       label: '४'
-    } : null;
+    } : null);
 
     const renderAdCard = (ad: { imageUrl: string; link: string; whatsapp?: string; phone?: string; label: string }, key: string) => {
       return (
@@ -1016,6 +1032,57 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       
       return <>{elements}</>;
     }
+  };
+
+  const getWhatsAppJoinUrl = () => {
+    const input = siteSettings?.whatsappUrl?.trim();
+    if (!input) {
+      // Provide a nice default WhatsApp group link so it works out-of-the-box
+      return "https://chat.whatsapp.com/Kz4Y6H7X8Y9Z0123456789";
+    }
+    if (input.startsWith('http://') || input.startsWith('https://')) {
+      return input;
+    }
+    // Remove non-numeric characters for phone number
+    const cleanPhone = input.replace(/[^0-9]/g, '');
+    if (cleanPhone) {
+      return `https://wa.me/${cleanPhone}`;
+    }
+    return "https://chat.whatsapp.com/Kz4Y6H7X8Y9Z0123456789";
+  };
+
+  const renderWhatsAppJoinBanner = (position: 'top' | 'bottom') => {
+    const joinUrl = getWhatsAppJoinUrl();
+    if (!joinUrl) return null;
+
+    const isTop = position === 'top';
+
+    return (
+      <div className={`w-full ${isTop ? 'mb-6' : 'mt-8'} bg-emerald-50/70 border-2 border-emerald-500/25 rounded-2xl p-4.5 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 select-none animate-fade-in`}>
+        <div className="flex items-center space-x-3.5 text-left w-full sm:w-auto">
+          <div className="bg-emerald-500 text-white p-3 rounded-full shadow-md animate-pulse shrink-0">
+            <MessageCircle className="h-6 w-6 fill-white" />
+          </div>
+          <div>
+            <h4 className="text-sm sm:text-base font-black text-slate-900 leading-snug">
+              ताज्या घडामोडी थेट तुमच्या व्हाट्सॲपवर मिळवा!
+            </h4>
+            <p className="text-xs text-slate-500 leading-normal mt-0.5">
+              आमच्या अधिकृत न्यूज चॅनेलच्या व्हाट्सॲप ग्रुपमध्ये सामील व्हा आणि राहा अपडेटेड सर्वात आधी.
+            </p>
+          </div>
+        </div>
+        <a
+          href={joinUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-3 px-6 rounded-xl text-sm flex items-center justify-center space-x-2.5 transition duration-150 shadow-md cursor-pointer shrink-0"
+        >
+          <MessageCircle className="h-5 w-5 fill-current shrink-0" />
+          <span>व्हाट्सॲप ग्रुप जॉईन करा</span>
+        </a>
+      </div>
+    );
   };
 
   const readingTime = calculateReadingTime(article.content);
@@ -1703,7 +1770,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
           fontSize === 'lg' ? 'text-base sm:text-lg' :
           'text-xl sm:text-2xl'
         } leading-relaxed space-y-6 shadow-3xs`}>
+          {renderWhatsAppJoinBanner('top')}
           {renderArticleContentWithMiddleAd()}
+          {renderWhatsAppJoinBanner('bottom')}
 
           {/* Dynamic Interactive Tag pills section */}
           <div className="pt-8 mt-10 border-t border-slate-100/80">
@@ -1864,57 +1933,51 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             <Bookmark className={`h-4 w-4 ${isSavedForLater ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
             <span>{isSavedForLater ? 'नंतरच्या यादीत सेव्ह केली' : 'नंतर वाचा (Save)'}</span>
           </button>
+        </div>
 
-          <ArticleShareButton
-            article={article}
-            siteName={siteSettings?.channelName || "अहिल्यानगर न्यूज नेटवर्क"}
-            onShareSuccess={() => setShareCount(prev => prev + 1)}
-            addToast={addToast}
-            variant="pill"
-          />
+        {/* Dedicated Social Media Sharing Component Block */}
+        <div className="mt-8 pt-6 border-t border-slate-200/80 select-none">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Share2 className="h-4.5 w-4.5 text-rose-600 animate-pulse" />
+              <h5 className="text-sm font-black text-slate-900 font-sans">सोशल मीडियावर शेअर करा (Share Article)</h5>
+            </div>
+            <div className="flex items-center space-x-1.5 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-lg text-xs font-bold text-rose-700 shadow-3xs">
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-600"></span>
+              </span>
+              <span className="font-extrabold font-mono">{shareCount} शेअर्स</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* WhatsApp Share */}
+            <button
+              onClick={shareOnWhatsApp}
+              className="flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 px-4 rounded-xl shadow-xs transition duration-200 hover:scale-[1.02] active:scale-98 cursor-pointer"
+            >
+              <MessageCircle className="h-4 w-4 fill-white text-emerald-600" />
+              <span>{shareWhatsAppCopied ? 'शेअर केले!' : 'व्हॉट्सॲपवर शेअर करा'}</span>
+            </button>
 
-          <button
-            onClick={shareOnTwitter}
-            className={`flex items-center space-x-1.5 bg-white border text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer ${
-              shareTwitterCopied 
-                ? 'border-emerald-300 text-emerald-600' 
-                : 'border-slate-200 hover:border-sky-300 hover:text-sky-600 text-slate-700'
-            }`}
-          >
-            {shareTwitterCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Twitter className="h-4 w-4 text-sky-500" />}
-            <span>{shareTwitterCopied ? 'ट्विट केले!' : 'ट्विट करा'}</span>
-          </button>
+            {/* Facebook Share */}
+            <button
+              onClick={shareOnFacebook}
+              className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 px-4 rounded-xl shadow-xs transition duration-200 hover:scale-[1.02] active:scale-98 cursor-pointer"
+            >
+              <Facebook className="h-4 w-4 fill-white text-blue-600" />
+              <span>{shareFacebookCopied ? 'फेसबुकवर शेअर झाले!' : 'फेसबुकवर शेअर करा'}</span>
+            </button>
 
-          <button
-            onClick={shareOnFacebook}
-            className={`flex items-center space-x-1.5 bg-white border text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer ${
-              shareFacebookCopied 
-                ? 'border-emerald-300 text-emerald-600' 
-                : 'border-slate-200 hover:border-blue-300 hover:text-blue-600 text-slate-700'
-            }`}
-          >
-            {shareFacebookCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Facebook className="h-4 w-4 text-blue-600" />}
-            <span>{shareFacebookCopied ? 'फेसबुकवर शेअर केले!' : 'फेसबुकवर शेअर करा'}</span>
-          </button>
-
-          <button
-            onClick={shareOnWhatsApp}
-            className={`flex items-center space-x-1.5 bg-white border text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer ${
-              shareWhatsAppCopied 
-                ? 'border-emerald-300 text-emerald-600' 
-                : 'border-slate-200 hover:border-emerald-300 hover:text-emerald-600 text-slate-700'
-            }`}
-          >
-            {shareWhatsAppCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <MessageCircle className="h-4 w-4 text-emerald-650" />}
-            <span>{shareWhatsAppCopied ? 'शेअर केले!' : 'व्हॉट्सॲपवर शेअर'}</span>
-          </button>
-
-          <div className="flex items-center space-x-2 bg-rose-50 border border-rose-100 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-700 shadow-xs animate-fade-in shrink-0">
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
-            </span>
-            <span className="font-extrabold text-xs font-mono">{shareCount} शेअर्स</span>
+            {/* Twitter/X Share */}
+            <button
+              onClick={shareOnTwitter}
+              className="flex items-center justify-center space-x-2 bg-slate-900 hover:bg-black text-white text-xs font-bold py-3 px-4 rounded-xl shadow-xs transition duration-200 hover:scale-[1.02] active:scale-98 cursor-pointer"
+            >
+              <Twitter className="h-4 w-4 fill-white text-slate-900" />
+              <span>{shareTwitterCopied ? 'ट्विट केले!' : 'X (ट्विटर) वर शेअर करा'}</span>
+            </button>
           </div>
         </div>
       </div>

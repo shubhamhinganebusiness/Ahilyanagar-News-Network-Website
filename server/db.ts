@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
@@ -17,7 +17,7 @@ import {
   setLogLevel,
   Firestore as WebFirestore 
 } from 'firebase/firestore';
-import { News, SiteCustomization, AuthorAccount, Poll, UserVote, PollComment, SiteNotification } from '../src/types';
+import type { News, SiteCustomization, AuthorAccount, Poll, UserVote, PollComment, SiteNotification } from '../src/types.ts';
 
 // Safe date conversion helper
 export function safeISOString(date: any): string {
@@ -137,14 +137,16 @@ const preSeededArticles: News[] = [
 ];
 
 // Error structures conforming to the requested Firestore format
-export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
+export const OperationType = {
+  CREATE: 'create',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  LIST: 'list',
+  GET: 'get',
+  WRITE: 'write',
+} as const;
+
+export type OperationType = typeof OperationType[keyof typeof OperationType];
 
 export interface FirestoreErrorInfo {
   error: string;
@@ -487,6 +489,14 @@ export class PortalDatabase {
           hidden: !!data.hidden,
           authorUsername: data.authorUsername || 'admin',
           scheduledPublishDate: data.scheduledPublishDate || '',
+          sponsorAd1ImageURL: data.sponsorAd1ImageURL || '',
+          sponsorAd1LinkURL: data.sponsorAd1LinkURL || '',
+          sponsorAd2ImageURL: data.sponsorAd2ImageURL || '',
+          sponsorAd2LinkURL: data.sponsorAd2LinkURL || '',
+          sponsorAd3ImageURL: data.sponsorAd3ImageURL || '',
+          sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
+          sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
+          sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
         } as News;
       });
 
@@ -571,6 +581,14 @@ export class PortalDatabase {
         hidden: !!data.hidden,
         authorUsername: data.authorUsername || 'admin',
         scheduledPublishDate: data.scheduledPublishDate || '',
+        sponsorAd1ImageURL: data.sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: data.sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: data.sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: data.sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: data.sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
       } as News;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {
@@ -606,6 +624,14 @@ export class PortalDatabase {
         hidden: !!data.hidden,
         authorUsername: data.authorUsername || 'admin',
         scheduledPublishDate: data.scheduledPublishDate || '',
+        sponsorAd1ImageURL: data.sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: data.sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: data.sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: data.sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: data.sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
       };
       list.push(newsItem);
       this.saveLocalNews(list);
@@ -629,6 +655,14 @@ export class PortalDatabase {
         hidden: !!data.hidden,
         authorUsername: data.authorUsername || 'admin',
         scheduledPublishDate: data.scheduledPublishDate || '',
+        sponsorAd1ImageURL: data.sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: data.sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: data.sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: data.sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: data.sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
       };
 
       const docRef = await addDoc(collection(this.firestore, 'news'), newsData);
@@ -704,6 +738,14 @@ export class PortalDatabase {
         hidden: !!finalData.hidden,
         authorUsername: finalData.authorUsername || 'admin',
         scheduledPublishDate: finalData.scheduledPublishDate || '',
+        sponsorAd1ImageURL: finalData.sponsorAd1ImageURL || '',
+        sponsorAd1LinkURL: finalData.sponsorAd1LinkURL || '',
+        sponsorAd2ImageURL: finalData.sponsorAd2ImageURL || '',
+        sponsorAd2LinkURL: finalData.sponsorAd2LinkURL || '',
+        sponsorAd3ImageURL: finalData.sponsorAd3ImageURL || '',
+        sponsorAd3LinkURL: finalData.sponsorAd3LinkURL || '',
+        sponsorAd4ImageURL: finalData.sponsorAd4ImageURL || '',
+        sponsorAd4LinkURL: finalData.sponsorAd4LinkURL || '',
       } as News;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {

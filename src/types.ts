@@ -14,6 +14,14 @@ export interface News {
   hidden?: boolean; // Visibility control (hide/unhide)
   authorUsername?: string; // Links article to user account
   scheduledPublishDate?: string; // Future post publication date/time
+  sponsorAd1ImageURL?: string;
+  sponsorAd1LinkURL?: string;
+  sponsorAd2ImageURL?: string;
+  sponsorAd2LinkURL?: string;
+  sponsorAd3ImageURL?: string;
+  sponsorAd3LinkURL?: string;
+  sponsorAd4ImageURL?: string;
+  sponsorAd4LinkURL?: string;
 }
 
 export interface AuthorAccount {

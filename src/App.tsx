@@ -522,6 +522,100 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Implement Read-Only, No-Copy, and No-Image-Download restrictions
+  useEffect(() => {
+    const isUserAdmin = isAdminMode || authUser?.role === 'superadmin' || authUser?.role === 'author';
+    
+    if (isUserAdmin) {
+      document.body.classList.add('admin-mode-active');
+    } else {
+      document.body.classList.remove('admin-mode-active');
+    }
+
+    let lastToastTime = 0;
+    const showCopyWarning = () => {
+      const now = Date.now();
+      if (now - lastToastTime > 3500) {
+        addToast('या वेबसाईटवरील मजकूर किंवा चित्रे कॉपी करण्यास अथवा डाउनलोड करण्यास मनाई आहे.', 'error');
+        lastToastTime = now;
+      }
+    };
+
+    const isEditableElement = (target: HTMLElement | null): boolean => {
+      if (!target) return false;
+      const tagName = target.tagName.toUpperCase();
+      return (
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]') !== null
+      );
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      if (isUserAdmin) return;
+      const target = e.target as HTMLElement;
+      if (isEditableElement(target)) return;
+
+      e.preventDefault();
+      showCopyWarning();
+    };
+
+    const handleCopyCut = (e: ClipboardEvent) => {
+      if (isUserAdmin) return;
+      const target = e.target as HTMLElement;
+      if (isEditableElement(target)) return;
+
+      e.preventDefault();
+      showCopyWarning();
+    };
+
+    const handleDragStart = (e: DragEvent) => {
+      if (isUserAdmin) return;
+      const target = e.target as HTMLElement;
+      // Completely block dragging images to download or copy them
+      if (target.tagName === 'IMG' || target.closest('img')) {
+        e.preventDefault();
+        showCopyWarning();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUserAdmin) return;
+      const target = e.target as HTMLElement;
+      if (isEditableElement(target)) return;
+
+      const key = e.key.toLowerCase();
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      // Block Ctrl+C, Ctrl+A, Ctrl+X, Ctrl+S, Ctrl+U, F12, Ctrl+Shift+I
+      if (
+        (isCmdOrCtrl && (key === 'c' || key === 'a' || key === 'x' || key === 's' || key === 'u')) ||
+        e.key === 'F12' ||
+        (isCmdOrCtrl && e.shiftKey && key === 'i') ||
+        (e.metaKey && e.altKey && key === 'i')
+      ) {
+        e.preventDefault();
+        showCopyWarning();
+      }
+    };
+
+    // Add event listeners globally
+    window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    window.addEventListener('copy', handleCopyCut, { capture: true });
+    window.addEventListener('cut', handleCopyCut, { capture: true });
+    window.addEventListener('dragstart', handleDragStart, { capture: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+      window.removeEventListener('copy', handleCopyCut, { capture: true });
+      window.removeEventListener('cut', handleCopyCut, { capture: true });
+      window.removeEventListener('dragstart', handleDragStart, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    };
+  }, [isAdminMode, authUser]);
+
   // Compute dynamic categories based on default core ones and the ones present in news articles
   const defaultCategories = ['सर्व', 'राजकीय', 'राष्ट्रीय', 'राज्य', 'शहर', 'क्रीडा', 'मनोरंजन', 'अर्थव्यवस्था'];
   const activeCategories = newsList

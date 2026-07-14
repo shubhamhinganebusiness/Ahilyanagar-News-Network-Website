@@ -4,7 +4,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { safeLocalStorage as localStorage, safeSessionStorage as sessionStorage } from '../utils/safeStorage';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X, Share2, Youtube, MessageSquare, Send } from 'lucide-react';
+import { Newspaper, KeyRound, User, PlusCircle, Trash2, LogOut, CheckCircle2, AlertCircle, Eye, EyeOff, Calendar, FileText, Settings, Sparkles, Building2, MapPin, Phone, Mail, Copyright, Copy, Check, ArrowDownToLine, Megaphone, Tv, AlertTriangle, Images, Upload, Twitter, Facebook, Instagram, Link, Pencil, LayoutDashboard, BarChart3, TrendingUp, Users, ShieldCheck, Activity, Flame, Smartphone, Tablet, Laptop, Clock, Plus, FolderOpen, Database, Crop, X, Share2, Youtube, MessageSquare, Send, MessageCircle } from 'lucide-react';
 import { News, CategoryType, SiteCustomization, BrandAdSlide, resolveDriveUrl } from '../types';
 import ImageLivePreview from './ImagePreview';
 import { getYouTubeId } from './LiveTvSection';
@@ -65,6 +65,16 @@ export default function AdminPanel({
   const [author, setAuthor] = useState('माझापत्र प्रतिनिधी');
   const [videoURL, setVideoURL] = useState('');
   const [scheduledPublishDate, setScheduledPublishDate] = useState('');
+
+  // Sponsor ad states for this news
+  const [sponsorAd1ImageURL, setSponsorAd1ImageURL] = useState('');
+  const [sponsorAd1LinkURL, setSponsorAd1LinkURL] = useState('');
+  const [sponsorAd2ImageURL, setSponsorAd2ImageURL] = useState('');
+  const [sponsorAd2LinkURL, setSponsorAd2LinkURL] = useState('');
+  const [sponsorAd3ImageURL, setSponsorAd3ImageURL] = useState('');
+  const [sponsorAd3LinkURL, setSponsorAd3LinkURL] = useState('');
+  const [sponsorAd4ImageURL, setSponsorAd4ImageURL] = useState('');
+  const [sponsorAd4LinkURL, setSponsorAd4LinkURL] = useState('');
   
   // Submit feedback
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2035,6 +2045,14 @@ export default function AdminPanel({
         videoURL: videoURL.trim(),
         tags: newsTags,
         scheduledPublishDate: scheduledPublishDate || '',
+        sponsorAd1ImageURL: sponsorAd1ImageURL.trim(),
+        sponsorAd1LinkURL: sponsorAd1LinkURL.trim(),
+        sponsorAd2ImageURL: sponsorAd2ImageURL.trim(),
+        sponsorAd2LinkURL: sponsorAd2LinkURL.trim(),
+        sponsorAd3ImageURL: sponsorAd3ImageURL.trim(),
+        sponsorAd3LinkURL: sponsorAd3LinkURL.trim(),
+        sponsorAd4ImageURL: sponsorAd4ImageURL.trim(),
+        sponsorAd4LinkURL: sponsorAd4LinkURL.trim(),
       };
 
       const url = editingArticleId ? `/api/news/${editingArticleId}` : '/api/news';
@@ -2109,10 +2127,19 @@ export default function AdminPanel({
       setVideoURL('');
       setNewsTags([]);
       setScheduledPublishDate('');
+      setSponsorAd1ImageURL('');
+      setSponsorAd1LinkURL('');
+      setSponsorAd2ImageURL('');
+      setSponsorAd2LinkURL('');
+      setSponsorAd3ImageURL('');
+      setSponsorAd3LinkURL('');
+      setSponsorAd4ImageURL('');
+      setSponsorAd4LinkURL('');
       setEditingArticleId(null);
 
       // Refresh list in parent
       refreshNews();
+      onSaveSettings();
     } catch (err: any) {
       console.error(err);
       const errMsg = err.message || 'काहीतरी गडबड झाली. कृपया पुन्हा प्रयत्न करा.';
@@ -3643,6 +3670,135 @@ export default function AdminPanel({
                   />
                 </div>
 
+                {/* Sponsor Ads Config Section */}
+                <div className="bg-slate-50/75 border border-slate-200/60 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center space-x-2 text-rose-600 font-bold text-sm">
+                    <Megaphone className="h-4 w-4" />
+                    <span>बातमीच्या मध्यभागी दाखवण्यासाठी ४ स्पॉन्सर जाहिराती (Sponsor Ads inside Article)</span>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    या बातमीच्या मजकुरात वेगवेगळ्या ठिकाणी दिसणाऱ्या ४ स्वतंत्र प्रायोजित (Sponsored) जाहिराती तुम्ही येथे सेट करू शकता. रिकामे सोडल्यास मूळ जाहिराती दिसतील.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Sponsor Ad 1 */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-3xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">जाहिरात १ (Sponsor Ad 1)</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात इमेज URL (Image URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd1ImageURL}
+                            onChange={(e) => setSponsorAd1ImageURL(e.target.value)}
+                            placeholder="https://example.com/ad1.jpg"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात लिंक URL (Redirect Link URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd1LinkURL}
+                            onChange={(e) => setSponsorAd1LinkURL(e.target.value)}
+                            placeholder="https://example.com/destination"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sponsor Ad 2 */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-3xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">जाहिरात २ (Sponsor Ad 2)</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात इमेज URL (Image URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd2ImageURL}
+                            onChange={(e) => setSponsorAd2ImageURL(e.target.value)}
+                            placeholder="https://example.com/ad2.jpg"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात लिंक URL (Redirect Link URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd2LinkURL}
+                            onChange={(e) => setSponsorAd2LinkURL(e.target.value)}
+                            placeholder="https://example.com/destination"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sponsor Ad 3 */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-3xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">जाहिरात ३ (Sponsor Ad 3)</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात इमेज URL (Image URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd3ImageURL}
+                            onChange={(e) => setSponsorAd3ImageURL(e.target.value)}
+                            placeholder="https://example.com/ad3.jpg"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात लिंक URL (Redirect Link URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd3LinkURL}
+                            onChange={(e) => setSponsorAd3LinkURL(e.target.value)}
+                            placeholder="https://example.com/destination"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sponsor Ad 4 */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-3xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">जाहिरात ४ (Sponsor Ad 4)</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात इमेज URL (Image URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd4ImageURL}
+                            onChange={(e) => setSponsorAd4ImageURL(e.target.value)}
+                            placeholder="https://example.com/ad4.jpg"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">जाहिरात लिंक URL (Redirect Link URL)</label>
+                          <input
+                            type="text"
+                            value={sponsorAd4LinkURL}
+                            onChange={(e) => setSponsorAd4LinkURL(e.target.value)}
+                            placeholder="https://example.com/destination"
+                            className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/25 rounded-lg p-2 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-3">
                   <button
                     type="submit"
@@ -3666,6 +3822,14 @@ export default function AdminPanel({
                         setVideoURL('');
                         setNewsTags([]);
                         setScheduledPublishDate('');
+                        setSponsorAd1ImageURL('');
+                        setSponsorAd1LinkURL('');
+                        setSponsorAd2ImageURL('');
+                        setSponsorAd2LinkURL('');
+                        setSponsorAd3ImageURL('');
+                        setSponsorAd3LinkURL('');
+                        setSponsorAd4ImageURL('');
+                        setSponsorAd4LinkURL('');
                         addToast('संपादन रद्द केले.', 'info');
                       }}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition text-sm cursor-pointer border border-slate-200 shrink-0"
@@ -3781,6 +3945,14 @@ export default function AdminPanel({
                                   setVideoURL(item.videoURL || '');
                                   setNewsTags(item.tags || []);
                                   setScheduledPublishDate(item.scheduledPublishDate || '');
+                                  setSponsorAd1ImageURL(item.sponsorAd1ImageURL || '');
+                                  setSponsorAd1LinkURL(item.sponsorAd1LinkURL || '');
+                                  setSponsorAd2ImageURL(item.sponsorAd2ImageURL || '');
+                                  setSponsorAd2LinkURL(item.sponsorAd2LinkURL || '');
+                                  setSponsorAd3ImageURL(item.sponsorAd3ImageURL || '');
+                                  setSponsorAd3LinkURL(item.sponsorAd3LinkURL || '');
+                                  setSponsorAd4ImageURL(item.sponsorAd4ImageURL || '');
+                                  setSponsorAd4LinkURL(item.sponsorAd4LinkURL || '');
                                   // Scroll smoothly to form
                                   document.getElementById('news-publish-form-card')?.scrollIntoView({ behavior: 'smooth' });
                                   addToast('बातमी संपादन मोड सक्रिय केला!', 'info');
@@ -4116,19 +4288,23 @@ export default function AdminPanel({
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-                    <MessageSquare className="h-3 w-3 text-emerald-500" />
-                    <span>व्हाट्सॲप नंबर किंवा चॅनेल लिंक (WhatsApp URL / Number)</span>
+                <div className="space-y-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                  <label className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <MessageCircle className="h-4 w-4 text-emerald-600 fill-emerald-500" />
+                    <span>व्हाट्सॲप ग्रुप / चॅनेल जॉईन लिंक (WhatsApp Group Join Link for Article Page)</span>
+                    <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold animate-pulse">महत्त्वाचे</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="उदा. 919876543210 किंवा ग्रुप लिंक..."
+                    placeholder="उदा. https://chat.whatsapp.com/Kz4Y6H7X8Y9Z..."
                     value={custWhatsappUrl}
                     onChange={(e) => setCustWhatsappUrl(e.target.value)}
-                    onBlur={() => { autoSaveBranding(); addActivityLog('व्हाट्सॲप संपर्क माहिती बदलली.'); }}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                    onBlur={() => { autoSaveBranding(); addActivityLog('व्हाट्सॲप ग्रुप लिंक अद्ययावत केली.'); }}
+                    className="w-full bg-white border border-emerald-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-sans font-medium"
                   />
+                  <p className="text-[10px] text-emerald-700 font-medium leading-relaxed">
+                    ही लिंक प्रत्येक बातमीच्या पानाच्या वर आणि खाली "व्हाट्सॲप ग्रुप जॉईन करा" या अत्यंत आकर्षक बटणांमध्ये आपोआप जोडली जाईल.
+                  </p>
                 </div>
 
                 <div className="space-y-1">

@@ -102,3 +102,41 @@
   font-size: 14px;
   text-align: left;
 }
+
+/* Custom Headline Carousel Progress Bar Animation */
+@keyframes carouselProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.animate-carousel-progress {
+  animation: carouselProgress 6s linear forwards;
+}
+
+/* Read Only & No Copy Protection for Standard Readers */
+body:not(.admin-mode-active) {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow selection in inputs, textareas or any editable fields */
+body:not(.admin-mode-active) input,
+body:not(.admin-mode-active) textarea,
+body:not(.admin-mode-active) [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+body:not(.admin-mode-active) img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
