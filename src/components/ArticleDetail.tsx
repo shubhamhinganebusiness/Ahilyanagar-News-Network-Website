@@ -45,6 +45,9 @@ import AuthorProfile from './AuthorProfile';
 import { ArticleShareButton } from './ArticleShareButton';
 import AdSenseUnit from './AdSenseUnit';
 
+// Global variable to hold reference to SpeechSynthesisUtterance to prevent garbage collection on Chrome/Safari
+let activeUtteranceGlobal: SpeechSynthesisUtterance | null = null;
+
 interface ArticleDetailProps {
   articleId: string;
   onBack: () => void;
@@ -76,7 +79,6 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const [speechRate, setSpeechRate] = useState(1.0);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
-  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Helper: Strip HTML and clean text for natural speech flow
   const cleanHtmlText = (html: string): string => {
@@ -127,9 +129,17 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = updateVoices;
     }
+    try {
+      window.speechSynthesis.addEventListener('voiceschanged', updateVoices);
+    } catch (e) {
+      console.warn('addEventListener on voiceschanged not supported', e);
+    }
 
     return () => {
       if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.removeEventListener('voiceschanged', updateVoices);
+        } catch (e) {}
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
@@ -200,57 +210,72 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
     return finalChunks;
   };
 
-  const speakCurrentChunk = () => {
+  const speakCurrentChunk = (rateToUse?: number) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
-    // Check if we reached the end of the queue or if queue was cleared
+    // 1. Check if we completed all chunks
     if (currentChunkIndexRef.current >= chunksRef.current.length) {
       setIsSpeaking(false);
       setIsPaused(false);
-      activeUtteranceRef.current = null;
+      activeUtteranceGlobal = null;
       addToast('बातमीचे वाचन पूर्ण झाले.', 'success');
       return;
     }
 
     const chunkText = chunksRef.current[currentChunkIndexRef.current];
-    const utterance = new SpeechSynthesisUtterance(chunkText);
-    activeUtteranceRef.current = utterance; // Keep alive in ref to avoid garbage collection
+    if (!chunkText || !chunkText.trim()) {
+      currentChunkIndexRef.current++;
+      speakCurrentChunk(rateToUse);
+      return;
+    }
 
+    // 2. Create the utterance
+    const utterance = new SpeechSynthesisUtterance(chunkText);
+    activeUtteranceGlobal = utterance; // Keep alive in global reference to avoid GC
+    (window as any)._activeUtterance = utterance; // Extra window reference
+
+    // 3. Configure voice
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name === selectedVoiceName) || getMarathiVoice(voices);
+    let voice = voices.find(v => v.name === selectedVoiceName) || getMarathiVoice(voices);
+    if (!voice && voices.length > 0) {
+      voice = voices.find(v => v.lang.toLowerCase().includes('in')) || voices[0];
+    }
+
     if (voice) {
       utterance.voice = voice;
       utterance.lang = voice.lang;
     } else {
-      utterance.lang = 'mr-IN'; // Default to Marathi
+      utterance.lang = 'mr-IN'; // Default to Marathi language code
     }
 
-    utterance.rate = speechRate;
+    utterance.rate = rateToUse !== undefined ? rateToUse : speechRate;
 
+    // 4. Setup event handlers
     utterance.onstart = () => {
       setIsSpeaking(true);
       setIsPaused(false);
     };
 
     utterance.onend = () => {
-      // If activeUtteranceRef is cleared, it means we stopped/reset speaking
-      if (!activeUtteranceRef.current) return;
-      
+      // Prevents race conditions if speech was stopped
+      if (activeUtteranceGlobal !== utterance) return;
       currentChunkIndexRef.current++;
-      speakCurrentChunk();
+      speakCurrentChunk(rateToUse);
     };
 
     utterance.onerror = (e) => {
-      // Ignored interrupted errors as they are part of regular stop/cancel flow
+      if (activeUtteranceGlobal !== utterance) return;
+      // 'interrupted' is thrown when user explicitly stops/resets speaking
       if (e.error !== 'interrupted') {
-        console.warn('SpeechSynthesis chunk error, skipping to next chunk:', e.error);
+        console.warn('SpeechSynthesis chunk error, skipping:', e.error);
         currentChunkIndexRef.current++;
-        speakCurrentChunk();
+        speakCurrentChunk(rateToUse);
       } else {
-        activeUtteranceRef.current = null;
+        activeUtteranceGlobal = null;
       }
     };
 
+    // 5. Play
     window.speechSynthesis.speak(utterance);
   };
 
@@ -264,27 +289,59 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       return;
     }
 
-    // Fully resume any stalled states before canceling to prevent browser Speech Lock-up
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-    window.speechSynthesis.cancel();
+    // Set speaking state immediately to give instant visual feedback in UI
+    setIsSpeaking(true);
+    setIsPaused(false);
 
+    // Prepare text content to speak
     const titleText = article.title;
     const authorText = article.author ? `लेखक: ${article.author}.` : '';
     const mainContentText = cleanHtmlText(article.content);
     
     const textToSpeak = `${titleText}. ${authorText}. ${mainContentText}`;
-    chunksRef.current = splitIntoChunks(textToSpeak);
+    const chunks = splitIntoChunks(textToSpeak);
+    chunksRef.current = chunks;
     currentChunkIndexRef.current = 0;
 
-    if (chunksRef.current.length === 0) {
+    if (chunks.length === 0) {
       addToast('वाचण्यासाठी कोणताही मजकूर उपलब्ध नाही.', 'error');
+      setIsSpeaking(false);
       return;
     }
 
-    speakCurrentChunk();
     addToast('बातमीचे वाचन सुरू केले.', 'info');
+
+    // Fully resume any stalled states before cancel to prevent browser Speech Lock-up
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    // CRITICAL iOS Safari & Browser User Gesture Unlock:
+    // Speak a tiny blank silent utterance synchronously within the click call stack.
+    // This registers a valid user activation gesture with the speech engine,
+    // unlocking it for Safari, Chrome, and Firefox.
+    try {
+      const unlockUtterance = new SpeechSynthesisUtterance(' ');
+      unlockUtterance.volume = 0; // Silent
+      window.speechSynthesis.speak(unlockUtterance);
+    } catch (e) {
+      console.warn('Unlock utterance failed:', e);
+    }
+
+    // Clear any previous ongoing or stuck utterances
+    const wasSpeaking = window.speechSynthesis.speaking;
+    if (wasSpeaking) {
+      window.speechSynthesis.cancel();
+      // If was speaking, the browser needs a brief moment to cancel the active voice stream.
+      // Since it was already speaking, the TTS engine is already unlocked, so we can use a small delay safely.
+      setTimeout(() => {
+        speakCurrentChunk();
+      }, 60);
+    } else {
+      // If NOT speaking, we play completely synchronously!
+      // This is crucial for Safari which blocks asynchronous speak() calls on first-play!
+      speakCurrentChunk();
+    }
   };
 
   const handlePauseSpeaking = () => {
@@ -298,10 +355,11 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
 
   const handleStopSpeaking = () => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    
+    activeUtteranceGlobal = null;
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
-    activeUtteranceRef.current = null; // Unregister before cancel to prevent onend recursion
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setIsPaused(false);
@@ -311,15 +369,15 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   const handleRateChange = (rate: number) => {
     setSpeechRate(rate);
     if (isSpeaking) {
-      // Seamlessly restart speaking from the current chunk with the new speed
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
+      activeUtteranceGlobal = null;
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
-      activeUtteranceRef.current = null;
-      window.speechSynthesis.cancel();
+      
+      // Short delay is needed for speech engine cancellation to complete on some browsers
       setTimeout(() => {
-        speakCurrentChunk();
-      }, 100);
+        speakCurrentChunk(rate);
+      }, 50);
     }
   };
   
