@@ -62,6 +62,7 @@ export default function AdminPanel({
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
   const [imageURL, setImageURL] = useState('');
+  const [gallery, setGallery] = useState<string[]>([]);
   const [author, setAuthor] = useState('माझापत्र प्रतिनिधी');
   const [videoURL, setVideoURL] = useState('');
   const [scheduledPublishDate, setScheduledPublishDate] = useState('');
@@ -550,6 +551,13 @@ export default function AdminPanel({
   const [liveTvUrl, setLiveTvUrl] = useState<string>(() => siteSettings?.liveTvUrl || '');
   const [enableFirebaseStorage, setEnableFirebaseStorage] = useState<boolean>(() => siteSettings?.enableFirebaseStorage === true);
 
+  // Google AdSense Settings states
+  const [adsenseClientId, setAdsenseClientId] = useState<string>(() => siteSettings?.adsenseClientId || '');
+  const [adsenseHeaderAdCode, setAdsenseHeaderAdCode] = useState<string>(() => siteSettings?.adsenseHeaderAdCode || '');
+  const [adsenseSidebarAdCode, setAdsenseSidebarAdCode] = useState<string>(() => siteSettings?.adsenseSidebarAdCode || '');
+  const [adsenseParagraphAdCode, setAdsenseParagraphAdCode] = useState<string>(() => siteSettings?.adsenseParagraphAdCode || '');
+  const [adsenseAutoAdsEnabled, setAdsenseAutoAdsEnabled] = useState<boolean>(() => siteSettings?.adsenseAutoAdsEnabled === true);
+
   // Detailed Reading Page Advertisements (4 Ads) States
   const [detailAd1Enabled, setDetailAd1Enabled] = useState<boolean>(() => siteSettings?.detailAd1Enabled !== false);
   const [detailAd1ImageUrl, setDetailAd1ImageUrl] = useState<string>(() => siteSettings?.detailAd1ImageUrl || 'https://drive.google.com/file/d/1E1E6cWWWKiBrCardUEJRg3dONyDJ6fe1/view?usp=drive_link');
@@ -623,6 +631,7 @@ export default function AdminPanel({
       setEditingArticleId(existingArticleId);
       setCategory(existingArticleData.category || 'राज्य');
       setImageURL(existingArticleData.imageURL || '');
+      setGallery(existingArticleData.gallery || []);
       setAuthor(existingArticleData.author || 'माझापत्र प्रतिनिधी');
       setVideoURL(existingArticleData.videoURL || '');
       setNewsTags(existingArticleData.tags || []);
@@ -633,6 +642,7 @@ export default function AdminPanel({
       // Reset other news form fields to defaults for a fresh import
       setCategory('राज्य');
       setImageURL('');
+      setGallery([]);
       setAuthor('माझापत्र प्रतिनिधी');
       setVideoURL('');
       setNewsTags([]);
@@ -1011,7 +1021,7 @@ export default function AdminPanel({
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadStatusText, setUploadStatusText] = useState<string>('');
 
-  const handleDeviceUpload = async (e: React.ChangeEvent<HTMLInputElement> | null, targetField: 'news' | 'logo' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' | 'authorAvatar', slideIndex?: number, directFile?: File) => {
+  const handleDeviceUpload = async (e: React.ChangeEvent<HTMLInputElement> | null, targetField: 'news' | 'logo' | 'banner' | 'slide' | 'detailAd1' | 'detailAd2' | 'detailAd3' | 'detailAd4' | 'authorAvatar' | 'gallery', slideIndex?: number, directFile?: File) => {
     const file = e ? e.target.files?.[0] : directFile;
     if (!file) return;
 
@@ -1259,6 +1269,9 @@ export default function AdminPanel({
         } else if (targetField === 'authorAvatar') {
           setProfileAvatarUrl(uploadedUrl);
           addToast('लेखकाचे प्रोफाईल चित्र यशस्वीरित्या अपलोड केले गेले!', 'success');
+        } else if (targetField === 'gallery') {
+          setGallery(prev => [...prev, uploadedUrl]);
+          addToast('गॅलरी चित्र यशस्वीरित्या अपलोड झाले!', 'success');
         }
       } catch (err: any) {
         console.error(err);
@@ -1339,6 +1352,13 @@ export default function AdminPanel({
       setAdBannerBgColor(siteSettings.adBannerBgColor || '#e11d48');
       setLiveTvUrl(siteSettings.liveTvUrl || '');
       setEnableFirebaseStorage(siteSettings.enableFirebaseStorage === true);
+
+      // Google AdSense synchronization
+      setAdsenseClientId(siteSettings.adsenseClientId || '');
+      setAdsenseHeaderAdCode(siteSettings.adsenseHeaderAdCode || '');
+      setAdsenseSidebarAdCode(siteSettings.adsenseSidebarAdCode || '');
+      setAdsenseParagraphAdCode(siteSettings.adsenseParagraphAdCode || '');
+      setAdsenseAutoAdsEnabled(siteSettings.adsenseAutoAdsEnabled === true);
 
       // Detailed Reading Page Advertisements synchronization
       setDetailAd1Enabled(siteSettings.detailAd1Enabled !== false);
@@ -1928,6 +1948,13 @@ export default function AdminPanel({
         liveTvUrl: updatedFields && 'liveTvUrl' in updatedFields ? updatedFields.liveTvUrl : liveTvUrl.trim(),
         enableFirebaseStorage: updatedFields && 'enableFirebaseStorage' in updatedFields ? updatedFields.enableFirebaseStorage : enableFirebaseStorage,
 
+        // Google AdSense / Ad Management System Settings
+        adsenseClientId: updatedFields && 'adsenseClientId' in updatedFields ? updatedFields.adsenseClientId : adsenseClientId.trim(),
+        adsenseHeaderAdCode: updatedFields && 'adsenseHeaderAdCode' in updatedFields ? updatedFields.adsenseHeaderAdCode : adsenseHeaderAdCode,
+        adsenseSidebarAdCode: updatedFields && 'adsenseSidebarAdCode' in updatedFields ? updatedFields.adsenseSidebarAdCode : adsenseSidebarAdCode,
+        adsenseParagraphAdCode: updatedFields && 'adsenseParagraphAdCode' in updatedFields ? updatedFields.adsenseParagraphAdCode : adsenseParagraphAdCode,
+        adsenseAutoAdsEnabled: updatedFields && 'adsenseAutoAdsEnabled' in updatedFields ? updatedFields.adsenseAutoAdsEnabled : adsenseAutoAdsEnabled,
+
         detailAd1Enabled: updatedFields && 'detailAd1Enabled' in updatedFields ? updatedFields.detailAd1Enabled : detailAd1Enabled,
         detailAd1ImageUrl: updatedFields && 'detailAd1ImageUrl' in updatedFields ? updatedFields.detailAd1ImageUrl : detailAd1ImageUrl.trim(),
         detailAd1Link: updatedFields && 'detailAd1Link' in updatedFields ? updatedFields.detailAd1Link : detailAd1Link.trim(),
@@ -2053,6 +2080,7 @@ export default function AdminPanel({
         sponsorAd3LinkURL: sponsorAd3LinkURL.trim(),
         sponsorAd4ImageURL: sponsorAd4ImageURL.trim(),
         sponsorAd4LinkURL: sponsorAd4LinkURL.trim(),
+        gallery: gallery,
       };
 
       const url = editingArticleId ? `/api/news/${editingArticleId}` : '/api/news';
@@ -2123,6 +2151,7 @@ export default function AdminPanel({
       setDescription('');
       setContent('');
       setImageURL('');
+      setGallery([]);
       setAuthor(userRole === 'author' ? userName : 'माझापत्र प्रतिनिधी');
       setVideoURL('');
       setNewsTags([]);
@@ -3560,6 +3589,143 @@ export default function AdminPanel({
                   <p className="text-[10px] text-slate-400">बातमीचे मुख्य कव्हर चित्र जोडण्यासाठी वैध URL पेस्ट करा किंवा स्थानिक चित्र क्रॉप करण्यासाठी <b>"अपलोड व क्रॉप"</b> सिलेक्ट करा.</p>
                 </div>
 
+                {/* News Photo Gallery Section */}
+                <div className="space-y-2 bg-slate-50/70 p-4 rounded-xl border border-slate-200/65">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+                      <Images className="h-4 w-4 text-rose-500" />
+                      <span>बातमीचे फोटो गॅलरी (News Image Gallery - Optional)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-sm">
+                      {gallery.length} चित्रे समाविष्ट
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                    <input
+                      type="text"
+                      id="gallery-input-field"
+                      placeholder="येथे अन्य चित्राची थेट URL पेस्ट करा..."
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) {
+                            if (!gallery.includes(val)) {
+                              setGallery(prev => [...prev, val]);
+                              (e.target as HTMLInputElement).value = '';
+                              addToast('गॅलरीमध्ये चित्र यशस्वीरित्या समाविष्ट केले!', 'success');
+                            } else {
+                              addToast('हे चित्र आधीच जोडलेले आहे.', 'info');
+                            }
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById('gallery-input-field') as HTMLInputElement;
+                        const val = input?.value.trim();
+                        if (val) {
+                          if (!gallery.includes(val)) {
+                            setGallery(prev => [...prev, val]);
+                            input.value = '';
+                            addToast('गॅलरीमध्ये चित्र यशस्वीरित्या समाविष्ट केले!', 'success');
+                          } else {
+                            addToast('हे चित्र आधीच जोडलेले आहे.', 'info');
+                          }
+                        } else {
+                          addToast('कृपया वैध चित्र URL टाका.', 'info');
+                        }
+                      }}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center justify-center cursor-pointer transition gap-1"
+                    >
+                      <span>जोडा</span>
+                    </button>
+
+                    {/* Gallery device upload */}
+                    <label className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-center cursor-pointer transition shrink-0 gap-1.5 self-stretch">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleDeviceUpload(e, 'gallery')}
+                        disabled={isUploading === 'gallery'}
+                      />
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>{isUploading === 'gallery' ? 'अपलोड...' : 'थेट अपलोड'}</span>
+                    </label>
+                  </div>
+
+                  {gallery.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-150">
+                      {gallery.map((imgUrl, index) => (
+                        <div key={index} className="group relative aspect-video rounded-md overflow-hidden bg-slate-50 border border-slate-200 shadow-2xs">
+                          <img
+                            src={resolveDriveUrl(imgUrl)}
+                            alt={`Gallery item ${index + 1}`}
+                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-2">
+                            {index > 0 && (
+                              <button
+                                type="button"
+                                title="डावीकडे हलवा"
+                                onClick={() => {
+                                  const list = [...gallery];
+                                  const temp = list[index];
+                                  list[index] = list[index - 1];
+                                  list[index - 1] = temp;
+                                  setGallery(list);
+                                }}
+                                className="bg-white/90 hover:bg-white text-slate-800 px-2 py-1 rounded-sm text-xs font-bold shadow-xs transition"
+                              >
+                                ←
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              title="चित्र हटवा"
+                              onClick={() => {
+                                setGallery(prev => prev.filter((_, i) => i !== index));
+                                addToast('गॅलरीमधील चित्र हटवले.', 'info');
+                              }}
+                              className="bg-rose-600 hover:bg-rose-700 text-white p-1.5 rounded-full shadow-xs transition"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                            {index < gallery.length - 1 && (
+                              <button
+                                type="button"
+                                title="उजवीकडे हलवा"
+                                onClick={() => {
+                                  const list = [...gallery];
+                                  const temp = list[index];
+                                  list[index] = list[index + 1];
+                                  list[index + 1] = temp;
+                                  setGallery(list);
+                                }}
+                                className="bg-white/90 hover:bg-white text-slate-800 px-2 py-1 rounded-sm text-xs font-bold shadow-xs transition"
+                              >
+                                →
+                              </button>
+                            )}
+                          </div>
+                          <span className="absolute bottom-1 left-1 text-[9px] bg-slate-900/70 text-white px-1.5 py-0.5 rounded-xs font-bold">
+                            #{index + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-slate-400">
+                    या बातमीसाठी एकाहून अधिक चित्रे जोडण्यासाठी गॅलरीचा वापर करा. तुम्ही थेट फाईल अपलोड करू शकता किंवा इमेजचे लिंक्स लिहून 'जोडा' दाबा. बाणांचा वापर करून क्रम बदला.
+                  </p>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">यूट्यूब व्हिडिओ लिंक (YouTube Video URL - Optional)</label>
                   <input
@@ -3818,6 +3984,7 @@ export default function AdminPanel({
                         setDescription('');
                         setContent('');
                         setImageURL('');
+                        setGallery([]);
                         setAuthor(userRole === 'author' ? userName : 'माझापत्र प्रतिनिधी');
                         setVideoURL('');
                         setNewsTags([]);
@@ -3941,6 +4108,7 @@ export default function AdminPanel({
                                   setDescription(item.description || '');
                                   setContent(item.content || '');
                                   setImageURL(item.imageURL || '');
+                                  setGallery(item.gallery || []);
                                   setAuthor(item.author || 'माझापत्र प्रतिनिधी');
                                   setVideoURL(item.videoURL || '');
                                   setNewsTags(item.tags || []);
@@ -4493,6 +4661,110 @@ export default function AdminPanel({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Row 5.2: Google AdSense & Ad Management System */}
+            <div className="bg-slate-50/60 p-4 sm:p-5 rounded-xl border border-slate-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-rose-100/60 pb-3">
+                <div className="flex items-center space-x-1.5">
+                  <Sparkles className="h-4.5 w-4.5 text-rose-500 shrink-0" />
+                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center space-x-1.5">
+                    <span>५.१ गूगल ॲडसेन्स व्यवस्थापन (Google AdSense Management)</span>
+                  </h4>
+                </div>
+                <span className="bg-rose-50 border border-rose-200/50 text-rose-700 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider select-none shrink-0 self-start sm:self-center">
+                  Google AdSense Ready
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                तुमच्या Google AdSense किंवा इतर कोणत्याही जाहिरात नेटवर्कचे कोड तुम्ही खालील रकान्यांमध्ये पेस्ट करून संपूर्ण वेबसाईटवर (हेडर, साईडबार आणि परिच्छेदांच्या मध्यभागी) सहजपणे जाहिराती दाखवू शकता.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                    <span>गूगल ॲडसेन्स क्लायंट आयडी (AdSense Client ID)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="उदा. ca-pub-xxxxxxxxxxxxxxxx"
+                    value={adsenseClientId}
+                    onChange={(e) => setAdsenseClientId(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('गूगल ॲडसेन्स क्लायंट आयडी बदलला.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-400">याने ऑटो जाहिराती (Auto Ads) सुरू होण्यास मदत होईल.</p>
+                </div>
+
+                <div className="flex items-center space-x-3 bg-white p-3.5 rounded-lg border border-slate-200 self-start mt-5 md:mt-6">
+                  <input
+                    type="checkbox"
+                    id="adsenseAutoAdsEnabled"
+                    checked={adsenseAutoAdsEnabled}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAdsenseAutoAdsEnabled(val);
+                      await autoSaveBranding({ adsenseAutoAdsEnabled: val });
+                      addActivityLog(val ? 'ऑटोमॅटिक जाहिराती सुरू केल्या.' : 'ऑटोमॅटिक जाहिराती बंद केल्या.');
+                    }}
+                    className="h-4.5 w-4.5 text-rose-600 focus:ring-rose-500 border-slate-300 rounded cursor-pointer"
+                  />
+                  <label htmlFor="adsenseAutoAdsEnabled" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    ॲटोमॅटिक जाहिराती सुरू करा (Enable Auto Ads Script)
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                    <span className="bg-rose-100 text-rose-700 font-black h-4.5 w-4.5 text-[9px] rounded-full flex items-center justify-center">H</span>
+                    <span>१. मुख्य हेडर जाहिरात कोड (Header AdSense Code / Responsive Banner HTML)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="येथे गूगल हेडर जाहिरातीचा कोड किंवा <ins className='adsbygoogle' ...> पेस्ट करा..."
+                    value={adsenseHeaderAdCode}
+                    onChange={(e) => setAdsenseHeaderAdCode(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('हेडर जाहिरात कोड बदलला.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-400">हा कोड मुख्य पानावर आणि बातम्यांच्या पानावरील हेडरच्या ठीक खाली दिसेल.</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                    <span className="bg-rose-100 text-rose-700 font-black h-4.5 w-4.5 text-[9px] rounded-full flex items-center justify-center">S</span>
+                    <span>२. साईडबार जाहिरात कोड (Sidebar AdSense Code / 300x250 Responsive Rectangle)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="येथे साईडबार जाहिरातीचा कोड किंवा जाहिरात बॅनर HTML पेस्ट करा..."
+                    value={adsenseSidebarAdCode}
+                    onChange={(e) => setAdsenseSidebarAdCode(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('साईडबार जाहिरात कोड बदलला.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-400">हा कोड होमपेजवरील मुख्य बातमी यादीच्या साईडबारमध्ये (ट्रेंडिंग बातम्यांच्या खाली) दिसेल.</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                    <span className="bg-rose-100 text-rose-700 font-black h-4.5 w-4.5 text-[9px] rounded-full flex items-center justify-center">P</span>
+                    <span>३. परिच्छेदांच्या मध्यभागी जाहिरात कोड (In-Article AdSense Code / Responsive Content-In-Article)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="येथे परिच्छेदांच्या मध्यभागी दिसणाऱ्या जाहिरातीचा कोड पेस्ट करा..."
+                    value={adsenseParagraphAdCode}
+                    onChange={(e) => setAdsenseParagraphAdCode(e.target.value)}
+                    onBlur={() => { autoSaveBranding(); addActivityLog('परिच्छेदांच्या मध्यभागी दिसणाऱ्या जाहिरातीचा कोड बदलला.'); }}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-400">हा कोड बातमी वाचताना पहिल्या दुसऱ्या परिच्छेदानंतर अत्यंत सुंदर आणि आकर्षक पद्धतीने मध्यभागी दिसेल.</p>
+                </div>
+              </div>
             </div>
 
             {/* Row 5.5: Article Detail Page Advertisements Customization */}

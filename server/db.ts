@@ -497,6 +497,7 @@ export class PortalDatabase {
           sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
           sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
           sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
+          gallery: data.gallery || [],
         } as News;
       });
 
@@ -589,6 +590,7 @@ export class PortalDatabase {
         sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
+        gallery: data.gallery || [],
       } as News;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {
@@ -632,6 +634,7 @@ export class PortalDatabase {
         sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
+        gallery: data.gallery || [],
       };
       list.push(newsItem);
       this.saveLocalNews(list);
@@ -663,6 +666,7 @@ export class PortalDatabase {
         sponsorAd3LinkURL: data.sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: data.sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: data.sponsorAd4LinkURL || '',
+        gallery: data.gallery || [],
       };
 
       const docRef = await addDoc(collection(this.firestore, 'news'), newsData);
@@ -746,6 +750,7 @@ export class PortalDatabase {
         sponsorAd3LinkURL: finalData.sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: finalData.sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: finalData.sponsorAd4LinkURL || '',
+        gallery: finalData.gallery || [],
       } as News;
     } catch (err) {
       if (this.checkIfFallbackNeeded(err)) {

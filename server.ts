@@ -848,7 +848,8 @@ Follow these rules strictly:
         sponsorAd3ImageURL,
         sponsorAd3LinkURL,
         sponsorAd4ImageURL,
-        sponsorAd4LinkURL
+        sponsorAd4LinkURL,
+        gallery
       } = req.body;
 
       if (!title || !category || !description || !content || !imageURL || !author) {
@@ -888,6 +889,7 @@ Follow these rules strictly:
         sponsorAd3LinkURL: sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: sponsorAd4LinkURL || '',
+        gallery: Array.isArray(gallery) ? gallery : [],
       });
 
       // Automatically update the breakingNewsText in site settings to show this title in the scrolling ticker
@@ -931,7 +933,8 @@ Follow these rules strictly:
         sponsorAd3ImageURL,
         sponsorAd3LinkURL,
         sponsorAd4ImageURL,
-        sponsorAd4LinkURL
+        sponsorAd4LinkURL,
+        gallery
       } = req.body;
 
       if (!title || !category || !description || !content || !imageURL || !author) {
@@ -972,6 +975,7 @@ Follow these rules strictly:
         sponsorAd3LinkURL: sponsorAd3LinkURL || '',
         sponsorAd4ImageURL: sponsorAd4ImageURL || '',
         sponsorAd4LinkURL: sponsorAd4LinkURL || '',
+        gallery: Array.isArray(gallery) ? gallery : [],
       };
       if (hidden !== undefined) {
         updateData.hidden = !!hidden;

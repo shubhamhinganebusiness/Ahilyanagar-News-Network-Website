@@ -24,6 +24,7 @@ import {
   X,
   Play,
   Maximize2,
+  Images,
   Tag,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,7 @@ import {
 import { News, SiteCustomization, AuthUser, resolveDriveUrl } from '../types';
 import AuthorProfile from './AuthorProfile';
 import { ArticleShareButton } from './ArticleShareButton';
+import AdSenseUnit from './AdSenseUnit';
 
 interface ArticleDetailProps {
   articleId: string;
@@ -345,6 +347,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
 
   // Zoom / Lightbox States
   const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomImageUrl, setZoomImageUrl] = useState('');
   const [zoomScale, setZoomScale] = useState(1.5);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -719,7 +722,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
   };
 
   // Zoom logic
-  const openZoomModal = () => {
+  const openZoomModal = (customUrl?: any) => {
+    const finalUrl = (customUrl && typeof customUrl === 'string') ? customUrl : (article?.imageURL || '');
+    setZoomImageUrl(finalUrl);
     setZoomScale(1.5);
     setPanOffset({ x: 0, y: 0 });
     setIsZoomedImageLoading(true);
@@ -956,6 +961,16 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
       part2.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p2')));
       if (ad2) elements.push(renderAdCard(ad2, 'mid-ad-2'));
 
+      // Google AdSense In-Paragraph Ad Placement
+      elements.push(
+        <AdSenseUnit
+          key="adsense-mid-para"
+          slotType="paragraph"
+          adCode={siteSettings?.adsenseParagraphAdCode}
+          clientId={siteSettings?.adsenseClientId}
+        />
+      );
+
       // Part 3 content + Ad 3
       part3.forEach((p, idx) => elements.push(renderChunk(p, idx, 'p3')));
       if (ad3) elements.push(renderAdCard(ad3, 'mid-ad-3'));
@@ -1009,6 +1024,16 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
         );
       });
       if (ad2) elements.push(renderAdCard(ad2, 'mid-ad-2'));
+
+      // Google AdSense In-Paragraph Ad Placement
+      elements.push(
+        <AdSenseUnit
+          key="adsense-mid-para"
+          slotType="paragraph"
+          adCode={siteSettings?.adsenseParagraphAdCode}
+          clientId={siteSettings?.adsenseClientId}
+        />
+      );
 
       // Part 3 content + Ad 3
       part3.forEach((para, idx) => {
@@ -1772,6 +1797,49 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
         } leading-relaxed space-y-6 shadow-3xs`}>
           {renderWhatsAppJoinBanner('top')}
           {renderArticleContentWithMiddleAd()}
+
+          {/* Interactive Image Gallery */}
+          {article.gallery && article.gallery.length > 0 && (
+            <div className={`mt-8 p-4 sm:p-5 rounded-2xl border ${
+              readingTheme === 'dark'
+                ? 'bg-[#1e293b]/30 border-slate-800'
+                : readingTheme === 'cream'
+                ? 'bg-[#f4efe6]/70 border-[#e8dfcf]'
+                : 'bg-slate-50/70 border-slate-200/50'
+            }`}>
+              <div className="flex items-center space-x-2 mb-4 select-none">
+                <Images className="h-5 w-5 text-rose-600 animate-pulse" />
+                <h3 className={`text-base font-extrabold ${
+                  readingTheme === 'dark' ? 'text-white' : readingTheme === 'cream' ? 'text-[#1a110a]' : 'text-slate-900'
+                }`}>
+                  📷 छायाचित्र दालन (Photo Gallery)
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                {article.gallery.map((imgUrl: string, idx: number) => (
+                  <div
+                    key={idx}
+                    onClick={() => openZoomModal(imgUrl)}
+                    className="group relative aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200/40 shadow-xs cursor-zoom-in transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+                  >
+                    <img
+                      src={resolveDriveUrl(imgUrl)}
+                      alt={`${article.title} - ${idx + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition duration-300" />
+                    <div className="absolute bottom-2.5 right-2.5 bg-slate-900/75 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-1 rounded-md flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <Maximize2 className="h-2.5 w-2.5" />
+                      <span>पहा</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {renderWhatsAppJoinBanner('bottom')}
 
           {/* Dynamic Interactive Tag pills section */}
@@ -2174,7 +2242,9 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
           {/* Top Panel */}
           <div className="w-full flex justify-between items-center text-white px-2 sm:px-6 py-2 max-w-7xl">
             <div className="flex flex-col">
-              <span className="bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded-sm w-fit uppercase mb-0.5">COVER LIVE VIEW</span>
+              <span className="bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded-sm w-fit uppercase mb-0.5">
+                {zoomImageUrl === article.imageURL ? 'COVER LIVE VIEW' : 'GALLERY IMAGE VIEW'}
+              </span>
               <h4 className="text-sm sm:text-base font-bold text-white max-w-md sm:max-w-2xl truncate leading-normal">
                 {article.title}
               </h4>
@@ -2209,7 +2279,7 @@ export default function ArticleDetail({ articleId, onBack, onSelectArticle, addT
             )}
             
             <img
-              src={resolveDriveUrl(article.imageURL)}
+              src={resolveDriveUrl(zoomImageUrl)}
               alt={article.title}
               className={`max-w-full max-h-[75vh] object-contain transition-transform duration-100 shadow-2xl rounded-sm ${
                 isZoomedImageLoading ? 'opacity-0' : 'opacity-100'

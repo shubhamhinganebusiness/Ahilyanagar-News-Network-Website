@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Eye, ArrowRight, LayoutGrid, AlertCircle, Sun, Sprout, CloudRain, CloudLightning, Coffee, Umbrella, Sparkles, Heart, BarChart3, CheckCircle2, Flame, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, User, Eye, ArrowRight, LayoutGrid, AlertCircle, Sun, Sprout, CloudRain, CloudLightning, Coffee, Umbrella, Sparkles, Heart, BarChart3, CheckCircle2, Flame, TrendingUp, ChevronLeft, ChevronRight, Bell, BellRing } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { News, CategoryType, SiteCustomization, Poll, AuthUser, resolveDriveUrl } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import BrandAdsSlider from './BrandAdsSlider';
 import PollComponent from './PollComponent';
+import AdSenseUnit from './AdSenseUnit';
 
 interface NewsGridProps {
   newsList: News[];
@@ -42,6 +43,48 @@ export default function NewsGrid({
   
   // Stable mock views state initialized with article real views or a seeded fallback
   const [mockViews, setMockViews] = useState<Record<string, number>>({});
+
+  // Web Push alerts subscription states
+  const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied'>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+
+  const requestPushAlertPermission = async () => {
+    if (!('Notification' in window)) {
+      if (addToast) addToast('तुमचा ब्राउझर पुश नोटिफिकेशन्सना सपोर्ट करत नाही.', 'error');
+      return;
+    }
+    
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        if (addToast) addToast('इन्स्टंट पुश नोटिफिकेशन्स यशस्वीरित्या सुरू झाले!', 'success');
+        // Trigger welcome alert
+        new Notification('🚨 अहिल्यानगर न्यूज नेटवर्क', {
+          body: 'इन्स्टंट अलर्ट्स सुरू केल्याबद्दल धन्यवाद! नवीन बातम्यांचे अलर्ट थेट येथे मिळतील.',
+          icon: 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link'
+        });
+      } else {
+        if (addToast) addToast('नोटिफिकेशन परवानगी नाकारली गेली.', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to request notification permission:', err);
+    }
+  };
+
+  const fireTestNotification = () => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🔔 चाचणी बातमी अलर्ट', {
+        body: 'हे एका नवीन बातमीचे थेट नोटिफिकेशन आहे! धन्यवाद.',
+        icon: 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link'
+      });
+      if (addToast) addToast('चाचणी अलर्ट यशस्वीरित्या पाठवला गेला!', 'success');
+    }
+  };
 
   useEffect(() => {
     const initialViews: Record<string, number> = {};
@@ -736,6 +779,60 @@ export default function NewsGrid({
                 ))}
             </div>
           </div>
+
+          {/* Web Push Notification Subscription Widget */}
+          <div className="bg-gradient-to-br from-rose-50 to-orange-50/60 rounded-2xl border border-rose-100 p-5 shadow-xs space-y-4">
+            <div className="flex items-center space-x-2.5 border-b border-rose-100/60 pb-3">
+              <div className="p-1.5 bg-rose-500 rounded-lg text-white">
+                <BellRing className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-rose-950 uppercase tracking-widest">पुश अलर्ट्स • INSTANT PUSH</h3>
+                <p className="text-[10px] text-rose-700 font-semibold font-sans">पहिले तुमच्याकडे बातमी पोहोचेल!</p>
+              </div>
+            </div>
+            
+            <p className="text-xs text-slate-600 leading-relaxed font-sans">
+              नवीन बातमी प्रसिद्ध होताच आपल्या मोबाईल किंवा कॉम्प्युटरवर झटपट अलर्ट मिळवा.
+            </p>
+
+            <div className="space-y-2">
+              {notificationPermission === 'granted' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100 text-xs font-bold">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span>इन्स्टंट अलर्ट्स सुरू आहेत ✓</span>
+                  </div>
+                  <button
+                    onClick={fireTestNotification}
+                    className="w-full py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs cursor-pointer transition duration-150 active:scale-95"
+                  >
+                    🔔 चाचणी अलर्ट पाठवा (Test Alert)
+                  </button>
+                </div>
+              ) : notificationPermission === 'denied' ? (
+                <div className="flex items-center space-x-2 text-rose-700 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100 text-xs font-bold">
+                  <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                  <span>ब्राउझर नोटिफिकेशन्स ब्लॉक आहेत ⚠</span>
+                </div>
+              ) : (
+                <button
+                  onClick={requestPushAlertPermission}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs cursor-pointer transition duration-150 active:scale-95 shadow-md shadow-rose-600/10 hover:shadow-rose-600/20 flex items-center justify-center space-x-1.5 animate-pulse"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span>नोटिफिकेशन सुरू करा (Subscribe)</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Google AdSense Sidebar Placement */}
+          <AdSenseUnit
+            slotType="sidebar"
+            adCode={siteSettings.adsenseSidebarAdCode}
+            clientId={siteSettings.adsenseClientId}
+          />
         </aside>
       </div>
     </div>

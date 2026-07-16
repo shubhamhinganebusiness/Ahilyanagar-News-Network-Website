@@ -14,6 +14,7 @@ import { AlertTriangle, Umbrella } from 'lucide-react';
 import AdBanner from './components/AdBanner';
 import LiveTvSection from './components/LiveTvSection';
 import AuthTroubleshooterModal from './components/AuthTroubleshooterModal';
+import AdSenseUnit from './components/AdSenseUnit';
 import { firebaseAppletConfig } from './firebase-config-fallback';
 import { useMetadata } from './hooks/useMetadata';
 
@@ -357,6 +358,40 @@ export default function App() {
     fetchNews();
   }, [currentCategory, searchQuery, isAdminMode]);
 
+  // Monitor news list for new stories and trigger Instant Web Push Alert
+  useEffect(() => {
+    if (newsList.length === 0) return;
+    
+    // Sort by createdAt descending to make sure we find the latest one
+    const sortedNews = [...newsList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const latestNews = sortedNews[0];
+    
+    if (latestNews) {
+      const lastSeenId = localStorage.getItem('mp_last_notified_news_id');
+      if (lastSeenId && lastSeenId !== latestNews._id) {
+        // It is indeed a fresh drop! Let's update stored id
+        localStorage.setItem('mp_last_notified_news_id', latestNews._id);
+        
+        // Trigger native notification if permission is granted
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification(`🚨 ताज्या घडामोडी: ${latestNews.title}`, {
+              body: `${latestNews.category} • अहिल्यानगर न्यूज नेटवर्क`,
+              icon: 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link',
+              badge: 'https://drive.google.com/file/d/1ggY7LBCLSwNPcQO1DttuRWidMWU7XMAS/view?usp=drive_link',
+              tag: latestNews._id
+            });
+          } catch (e) {
+            console.warn('Native notification failed:', e);
+          }
+        }
+      } else if (!lastSeenId) {
+        // First load, just set the reference without spamming
+        localStorage.setItem('mp_last_notified_news_id', latestNews._id);
+      }
+    }
+  }, [newsList]);
+
   // Fetch Site Customization settings on mount with localStorage caching
   const fetchSettings = () => {
     const tryDirectSettings = () => {
@@ -679,6 +714,17 @@ export default function App() {
 
         {/* Dynamic Pages Area */}
         <main className="animate-fade-in">
+          {/* Header Google AdSense Placement */}
+          {!isAdminMode && (
+            <div className="w-full max-w-7xl mx-auto px-4 mt-6">
+              <AdSenseUnit
+                slotType="header"
+                adCode={siteSettings?.adsenseHeaderAdCode}
+                clientId={siteSettings?.adsenseClientId}
+              />
+            </div>
+          )}
+
           {isAdminMode ? (
             <AdminPanel
               onBackToHome={handleBackToHome}

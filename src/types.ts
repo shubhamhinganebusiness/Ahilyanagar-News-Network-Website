@@ -22,6 +22,7 @@ export interface News {
   sponsorAd3LinkURL?: string;
   sponsorAd4ImageURL?: string;
   sponsorAd4LinkURL?: string;
+  gallery?: string[]; // Multiple images for a single article
 }
 
 export interface AuthorAccount {
@@ -142,6 +143,13 @@ export interface SiteCustomization {
   youtubeUrl?: string;
   whatsappUrl?: string;
   telegramUrl?: string;
+
+  // Google AdSense / Ad Management System Fields
+  adsenseClientId?: string;
+  adsenseHeaderAdCode?: string;
+  adsenseSidebarAdCode?: string;
+  adsenseParagraphAdCode?: string;
+  adsenseAutoAdsEnabled?: boolean;
 }
 
 export interface SiteActivityLog {
