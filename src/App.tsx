@@ -238,6 +238,26 @@ export default function App() {
       brandAdsTitle: 'विशेष जाहिरात दालन',
       brandAdsSubtitle: 'आमच्या न्यूज पोर्टलवर आपल्या व्यवसायाची जाहिरात करा',
       brandAdsInterval: 5,
+      adsenseClientId: 'ca-pub-2246219901152020',
+      adsenseAutoAdsEnabled: true,
+      adsenseHeaderAdCode: `<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-2246219901152020"
+     data-ad-slot="8876543210"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>`,
+      adsenseSidebarAdCode: `<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-2246219901152020"
+     data-ad-slot="7876543210"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>`,
+      adsenseParagraphAdCode: `<ins class="adsbygoogle"
+     style="display:block; text-align:center;"
+     data-ad-layout="in-article"
+     data-ad-format="fluid"
+     data-ad-client="ca-pub-2246219901152020"
+     data-ad-slot="6876543210"></ins>`,
     };
 
     const result = { ...defaultVals };
